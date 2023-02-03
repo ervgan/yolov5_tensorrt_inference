@@ -15,10 +15,10 @@ const static char* kInputTensorName = "data";
 const static char* kOutputTensorName = "prob";
 
 // Detection model and Segmentation model' number of classes
-constexpr static int kNumClass = 80;
+constexpr static int kNumClass = 1;
 
 // Classfication model's number of classes
-constexpr static int kClsNumClass = 1000;
+constexpr static int kClsNumClass = 1;
 
 constexpr static int kBatchSize = 1;
 
@@ -36,7 +36,8 @@ constexpr static int kMaxNumOutputBbox = 1000;
 
 constexpr static int kNumAnchor = 3;
 
-// The bboxes whose confidence is lower than kIgnoreThresh will be ignored in yololayer plugin.
+// The bboxes whose confidence is lower than kIgnoreThresh will be ignored in
+// yololayer plugin.
 constexpr static float kIgnoreThresh = 0.1f;
 
 /* --------------------------------------------------------
@@ -52,4 +53,3 @@ const static int kGpuId = 0;
 
 // If your image size is larger than 4096 * 3112, please increase this value
 const static int kMaxInputImageSize = 4096 * 3112;
-

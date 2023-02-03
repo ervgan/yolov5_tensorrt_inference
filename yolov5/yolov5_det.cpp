@@ -1,20 +1,22 @@
-#include "cuda_utils.h"
-#include "logging.h"
-#include "utils.h"
-#include "preprocess.h"
-#include "postprocess.h"
-#include "model.h"
-
-#include <iostream>
 #include <chrono>
 #include <cmath>
+#include <iostream>
+
+#include "cuda_utils.h"
+#include "logging.h"
+#include "model.h"
+#include "postprocess.h"
+#include "preprocess.h"
+#include "utils.h"
 
 using namespace nvinfer1;
 
 static Logger gLogger;
-const static int kOutputSize = kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
+const static int kOutputSize =
+    kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 
-bool parse_args(int argc, char** argv, std::string& wts, std::string& engine, bool& is_p6, float& gd, float& gw, std::string& img_dir) {
+bool parse_args(int argc, char** argv, std::string& wts, std::string& engine,
+                bool& is_p6, float& gd, float& gw, std::string& img_dir) {
   if (argc < 4) return false;
   if (std::string(argv[1]) == "-s" && (argc == 5 || argc == 7)) {
     wts = std::string(argv[2]);
@@ -53,38 +55,50 @@ bool parse_args(int argc, char** argv, std::string& wts, std::string& engine, bo
   return true;
 }
 
-void prepare_buffers(ICudaEngine* engine, float** gpu_input_buffer, float** gpu_output_buffer, float** cpu_output_buffer) {
+void prepare_buffers(ICudaEngine* engine, float** gpu_input_buffer,
+                     float** gpu_output_buffer, float** cpu_output_buffer) {
   assert(engine->getNbBindings() == 2);
-  // In order to bind the buffers, we need to know the names of the input and output tensors.
-  // Note that indices are guaranteed to be less than IEngine::getNbBindings()
+  // In order to bind the buffers, we need to know the names of the input and
+  // output tensors. Note that indices are guaranteed to be less than
+  // IEngine::getNbBindings()
   const int inputIndex = engine->getBindingIndex(kInputTensorName);
   const int outputIndex = engine->getBindingIndex(kOutputTensorName);
   assert(inputIndex == 0);
   assert(outputIndex == 1);
   // Create GPU buffers on device
-  CUDA_CHECK(cudaMalloc((void**)gpu_input_buffer, kBatchSize * 3 * kInputH * kInputW * sizeof(float)));
-  CUDA_CHECK(cudaMalloc((void**)gpu_output_buffer, kBatchSize * kOutputSize * sizeof(float)));
+  CUDA_CHECK(cudaMalloc((void**)gpu_input_buffer,
+                        kBatchSize * 3 * kInputH * kInputW * sizeof(float)));
+  CUDA_CHECK(cudaMalloc((void**)gpu_output_buffer,
+                        kBatchSize * kOutputSize * sizeof(float)));
 
   *cpu_output_buffer = new float[kBatchSize * kOutputSize];
 }
 
-void infer(IExecutionContext& context, cudaStream_t& stream, void** gpu_buffers, float* output, int batchsize) {
+void infer(IExecutionContext& context, cudaStream_t& stream, void** gpu_buffers,
+           float* output, int batchsize) {
   context.enqueue(batchsize, gpu_buffers, stream, nullptr);
-  CUDA_CHECK(cudaMemcpyAsync(output, gpu_buffers[1], batchsize * kOutputSize * sizeof(float), cudaMemcpyDeviceToHost, stream));
+  CUDA_CHECK(cudaMemcpyAsync(output, gpu_buffers[1],
+                             batchsize * kOutputSize * sizeof(float),
+                             cudaMemcpyDeviceToHost, stream));
   cudaStreamSynchronize(stream);
 }
 
-void serialize_engine(unsigned int max_batchsize, bool& is_p6, float& gd, float& gw, std::string& wts_name, std::string& engine_name) {
+void serialize_engine(unsigned int max_batchsize, bool& is_p6, float& gd,
+                      float& gw, std::string& wts_name,
+                      std::string& engine_name) {
   // Create builder
   IBuilder* builder = createInferBuilder(gLogger);
   IBuilderConfig* config = builder->createBuilderConfig();
 
-  // Create model to populate the network, then set the outputs and create an engine
-  ICudaEngine *engine = nullptr;
+  // Create model to populate the network, then set the outputs and create an
+  // engine
+  ICudaEngine* engine = nullptr;
   if (is_p6) {
-    engine = build_det_p6_engine(max_batchsize, builder, config, DataType::kFLOAT, gd, gw, wts_name);
+    engine = build_det_p6_engine(max_batchsize, builder, config,
+                                 DataType::kFLOAT, gd, gw, wts_name);
   } else {
-    engine = build_det_engine(max_batchsize, builder, config, DataType::kFLOAT, gd, gw, wts_name);
+    engine = build_det_engine(max_batchsize, builder, config, DataType::kFLOAT,
+                              gd, gw, wts_name);
   }
   assert(engine != nullptr);
 
@@ -98,7 +112,8 @@ void serialize_engine(unsigned int max_batchsize, bool& is_p6, float& gd, float&
     std::cerr << "Could not open plan output file" << std::endl;
     assert(false);
   }
-  p.write(reinterpret_cast<const char*>(serialized_engine->data()), serialized_engine->size());
+  p.write(reinterpret_cast<const char*>(serialized_engine->data()),
+          serialized_engine->size());
 
   // Close everything down
   engine->destroy();
@@ -107,7 +122,8 @@ void serialize_engine(unsigned int max_batchsize, bool& is_p6, float& gd, float&
   serialized_engine->destroy();
 }
 
-void deserialize_engine(std::string& engine_name, IRuntime** runtime, ICudaEngine** engine, IExecutionContext** context) {
+void deserialize_engine(std::string& engine_name, IRuntime** runtime,
+                        ICudaEngine** engine, IExecutionContext** context) {
   std::ifstream file(engine_name, std::ios::binary);
   if (!file.good()) {
     std::cerr << "read " << engine_name << " error!" << std::endl;
@@ -142,8 +158,12 @@ int main(int argc, char** argv) {
 
   if (!parse_args(argc, argv, wts_name, engine_name, is_p6, gd, gw, img_dir)) {
     std::cerr << "arguments not right!" << std::endl;
-    std::cerr << "./yolov5_det -s [.wts] [.engine] [n/s/m/l/x/n6/s6/m6/l6/x6 or c/c6 gd gw]  // serialize model to plan file" << std::endl;
-    std::cerr << "./yolov5_det -d [.engine] ../images  // deserialize plan file and run inference" << std::endl;
+    std::cerr << "./yolov5_det -s [.wts] [.engine] [n/s/m/l/x/n6/s6/m6/l6/x6 "
+                 "or c/c6 gd gw]  // serialize model to plan file"
+              << std::endl;
+    std::cerr << "./yolov5_det -d [.engine] ../images  // deserialize plan "
+                 "file and run inference"
+              << std::endl;
     return -1;
   }
 
@@ -194,11 +214,16 @@ int main(int argc, char** argv) {
     auto start = std::chrono::system_clock::now();
     infer(*context, stream, (void**)gpu_buffers, cpu_output_buffer, kBatchSize);
     auto end = std::chrono::system_clock::now();
-    std::cout << "inference time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+    std::cout << "inference time: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                       start)
+                     .count()
+              << "ms" << std::endl;
 
     // NMS
     std::vector<std::vector<Detection>> res_batch;
-    batch_nms(res_batch, cpu_output_buffer, img_batch.size(), kOutputSize, kConfThresh, kNmsThresh);
+    batch_nms(res_batch, cpu_output_buffer, img_batch.size(), kOutputSize,
+              kConfThresh, kNmsThresh);
 
     // Draw bounding boxes
     draw_bbox(img_batch, res_batch);
@@ -230,4 +255,3 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-
