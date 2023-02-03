@@ -71,15 +71,16 @@ int GetDepth(int x, float gd) {
 }
 
 // add batch normalization to address internal covariate shift
-IScaleLayer* AddBatchNorm2D(float eps, const ITensor& input,
-                            const std::string& lname,
-                            INetworkDefinition* network,
-                            std::map<std::string, Weights>& weight_map) {
-  float* gamma = (float*)weight_map[lname + ".weight"].values;
-  float* beta = (float*)weight_map[lname + ".bias"].values;
-  float* mean = (float*)weight_map[lname + ".running_mean"].values;
-  float* var = (float*)weight_map[lname + ".running_var"].values;
-  int len = weight_map[lname + ".running_var"].count;
+// returns normalized layer
+IScaleLayer* AddBatchNorm2D(INetworkDefinition* network,
+                            std::map<std::string, Weights>& weight_map,
+                            const ITensor& input, const std::string& layer_name,
+                            float eps) {
+  float* gamma = (float*)weight_map[layer_name + ".weight"].values;
+  float* beta = (float*)weight_map[layer_name + ".bias"].values;
+  float* mean = (float*)weight_map[layer_name + ".running_mean"].values;
+  float* var = (float*)weight_map[layer_name + ".running_var"].values;
+  int len = weight_map[layer_name + ".running_var"].count;
 
   float* scale_values = reinterpret_cast<float*>(malloc(sizeof(float) * len));
   for (int i = 0; i < len; i++) {
@@ -99,9 +100,9 @@ IScaleLayer* AddBatchNorm2D(float eps, const ITensor& input,
   }
   Weights power{DataType::kFLOAT, power_values, len};
 
-  weight_map[lname + ".scale"] = scale;
-  weight_map[lname + ".shift"] = shift;
-  weight_map[lname + ".power"] = power;
+  weight_map[layer_name + ".scale"] = scale;
+  weight_map[layer_name + ".shift"] = shift;
+  weight_map[layer_name + ".power"] = power;
 
   IScaleLayer* scale_layer =
       network->addScale(input, ScaleMode::kCHANNEL, shift, scale, power);
@@ -109,63 +110,46 @@ IScaleLayer* AddBatchNorm2D(float eps, const ITensor& input,
   return scale_layer;
 }
 
-ILayer* convBlock(INetworkDefinition* network,
-                  std::map<std::string, Weights>& weight_map, ITensor& input,
-                  int outch, int ksize, int s, int g, std::string lname) {
-  Weights emptywts{DataType::kFLOAT, nullptr, 0};
-  int p = ksize / 3;
-  IConvolutionLayer* conv1 =
-      network->addConvolutionNd(input, outch, DimsHW{ksize, ksize},
-                                weight_map[lname + ".conv.weight"], emptywts);
-  assert(conv1);
-  conv1->setStrideNd(DimsHW{s, s});
-  conv1->setPaddingNd(DimsHW{p, p});
-  conv1->setNbGroups(g);
-  conv1->setName((lname + ".conv").c_str());
-  IScaleLayer* bn1 = AddBatchNorm2D(network, weight_map, *conv1->getOutput(0),
-                                    lname + ".bn", 1e-3);
+// returns a single TensorRT layer
+ILayer* CreateConvoLayer(INetworkDefinition* network,
+                         std::map<std::string, Weights>& weight_map,
+                         const ITensor& input, int output, int kernel_size,
+                         int stride, int nb_groups, std::string layer_name) {
+  Weights empty_wts{DataType::kFLOAT, nullptr, 0};
+  const int padding = kernel_size / 3;
+  IConvolutionLayer* convo_layer = network->addConvolutionNd(
+      input, output, DimsHW{kernel_size, kernel_size},
+      weight_map[layer_name + ".conv.weight"], empty_wts);
 
-  // silu = x * sigmoid
-  auto sig =
-      network->addActivation(*bn1->getOutput(0), ActivationType::kSIGMOID);
-  assert(sig);
-  auto ew = network->addElementWise(*bn1->getOutput(0), *sig->getOutput(0),
-                                    ElementWiseOperation::kPROD);
-  assert(ew);
-  return ew;
-}
+  assert(convo_layer);
 
-ILayer* focus(INetworkDefinition* network,
-              std::map<std::string, Weights>& weight_map, ITensor& input,
-              int inch, int outch, int ksize, std::string lname) {
-  ISliceLayer* s1 =
-      network->addSlice(input, Dims3{0, 0, 0},
-                        Dims3{inch, kInputH / 2, kInputW / 2}, Dims3{1, 2, 2});
-  ISliceLayer* s2 =
-      network->addSlice(input, Dims3{0, 1, 0},
-                        Dims3{inch, kInputH / 2, kInputW / 2}, Dims3{1, 2, 2});
-  ISliceLayer* s3 =
-      network->addSlice(input, Dims3{0, 0, 1},
-                        Dims3{inch, kInputH / 2, kInputW / 2}, Dims3{1, 2, 2});
-  ISliceLayer* s4 =
-      network->addSlice(input, Dims3{0, 1, 1},
-                        Dims3{inch, kInputH / 2, kInputW / 2}, Dims3{1, 2, 2});
-  ITensor* inputTensors[] = {s1->getOutput(0), s2->getOutput(0),
-                             s3->getOutput(0), s4->getOutput(0)};
-  auto cat = network->addConcatenation(inputTensors, 4);
-  auto conv = convBlock(network, weight_map, *cat->getOutput(0), outch, ksize,
-                        1, 1, lname + ".conv");
-  return conv;
+  convo_layer->setStrideNd(DimsHW{stride, stride});
+  convo_layer->setPaddingNd(DimsHW{padding, padding});
+  convo_layer->setNbGroups(nb_groups);
+  convo_layer->setName((layer_name + ".conv").c_str());
+  IScaleLayer* batch_norm_layer =
+      AddBatchNorm2D(network, weight_map, *convo_layer->getOutput(0),
+                     layer_name + ".bn", 1e-3);
+
+  // using silu activation method = input * sigmoid
+  auto sigmoid_activation = network->addActivation(
+      *batch_norm_layer->getOutput(0), ActivationType::kSIGMOID);
+  assert(sigmoid_activation);
+  auto silu_activation =
+      network->addElementWise(*batch_norm_layer->getOutput(0),
+                              *sig->getOutput(0), ElementWiseOperation::kPROD);
+  assert(silu_activation);
+  return silu_activation;
 }
 
 ILayer* bottleneck(INetworkDefinition* network,
                    std::map<std::string, Weights>& weight_map, ITensor& input,
                    int c1, int c2, bool shortcut, int g, float e,
-                   std::string lname) {
-  auto cv1 = convBlock(network, weight_map, input, (int)((float)c2 * e), 1, 1,
-                       1, lname + ".cv1");
-  auto cv2 = convBlock(network, weight_map, *cv1->getOutput(0), c2, 3, 1, g,
-                       lname + ".cv2");
+                   std::string layer_name) {
+  auto cv1 = CreateConvoLayer(network, weight_map, input, (int)((float)c2 * e),
+                              1, 1, 1, layer_name + ".cv1");
+  auto cv2 = CreateConvoLayer(network, weight_map, *cv1->getOutput(0), c2, 3, 1,
+                              g, layer_name + ".cv2");
   if (shortcut && c1 == c2) {
     auto ew = network->addElementWise(input, *cv2->getOutput(0),
                                       ElementWiseOperation::kSUM);
@@ -176,30 +160,34 @@ ILayer* bottleneck(INetworkDefinition* network,
 
 ILayer* C3(INetworkDefinition* network,
            std::map<std::string, Weights>& weight_map, ITensor& input, int c1,
-           int c2, int n, bool shortcut, int g, float e, std::string lname) {
+           int c2, int n, bool shortcut, int g, float e,
+           std::string layer_name) {
   int c_ = (int)((float)c2 * e);
-  auto cv1 = convBlock(network, weight_map, input, c_, 1, 1, 1, lname + ".cv1");
-  auto cv2 = convBlock(network, weight_map, input, c_, 1, 1, 1, lname + ".cv2");
+  auto cv1 = CreateConvoLayer(network, weight_map, input, c_, 1, 1, 1,
+                              layer_name + ".cv1");
+  auto cv2 = CreateConvoLayer(network, weight_map, input, c_, 1, 1, 1,
+                              layer_name + ".cv2");
   ITensor* y1 = cv1->getOutput(0);
   for (int i = 0; i < n; i++) {
     auto b = bottleneck(network, weight_map, *y1, c_, c_, shortcut, g, 1.0,
-                        lname + ".m." + std::to_string(i));
+                        layer_name + ".m." + std::to_string(i));
     y1 = b->getOutput(0);
   }
 
   ITensor* inputTensors[] = {y1, cv2->getOutput(0)};
   auto cat = network->addConcatenation(inputTensors, 2);
 
-  auto cv3 = convBlock(network, weight_map, *cat->getOutput(0), c2, 1, 1, 1,
-                       lname + ".cv3");
+  auto cv3 = CreateConvoLayer(network, weight_map, *cat->getOutput(0), c2, 1, 1,
+                              1, layer_name + ".cv3");
   return cv3;
 }
 
 ILayer* SPP(INetworkDefinition* network,
             std::map<std::string, Weights>& weight_map, ITensor& input, int c1,
-            int c2, int k1, int k2, int k3, std::string lname) {
+            int c2, int k1, int k2, int k3, std::string layer_name) {
   int c_ = c1 / 2;
-  auto cv1 = convBlock(network, weight_map, input, c_, 1, 1, 1, lname + ".cv1");
+  auto cv1 = CreateConvoLayer(network, weight_map, input, c_, 1, 1, 1,
+                              layer_name + ".cv1");
 
   auto pool1 = network->addPoolingNd(*cv1->getOutput(0), PoolingType::kMAX,
                                      DimsHW{k1, k1});
@@ -218,16 +206,17 @@ ILayer* SPP(INetworkDefinition* network,
                              pool2->getOutput(0), pool3->getOutput(0)};
   auto cat = network->addConcatenation(inputTensors, 4);
 
-  auto cv2 = convBlock(network, weight_map, *cat->getOutput(0), c2, 1, 1, 1,
-                       lname + ".cv2");
+  auto cv2 = CreateConvoLayer(network, weight_map, *cat->getOutput(0), c2, 1, 1,
+                              1, layer_name + ".cv2");
   return cv2;
 }
 
 ILayer* SPPF(INetworkDefinition* network,
              std::map<std::string, Weights>& weight_map, ITensor& input, int c1,
-             int c2, int k, std::string lname) {
+             int c2, int k, std::string layer_name) {
   int c_ = c1 / 2;
-  auto cv1 = convBlock(network, weight_map, input, c_, 1, 1, 1, lname + ".cv1");
+  auto cv1 = CreateConvoLayer(network, weight_map, input, c_, 1, 1, 1,
+                              layer_name + ".cv1");
 
   auto pool1 = network->addPoolingNd(*cv1->getOutput(0), PoolingType::kMAX,
                                      DimsHW{k, k});
@@ -244,15 +233,16 @@ ILayer* SPPF(INetworkDefinition* network,
   ITensor* inputTensors[] = {cv1->getOutput(0), pool1->getOutput(0),
                              pool2->getOutput(0), pool3->getOutput(0)};
   auto cat = network->addConcatenation(inputTensors, 4);
-  auto cv2 = convBlock(network, weight_map, *cat->getOutput(0), c2, 1, 1, 1,
-                       lname + ".cv2");
+  auto cv2 = CreateConvoLayer(network, weight_map, *cat->getOutput(0), c2, 1, 1,
+                              1, layer_name + ".cv2");
   return cv2;
 }
 
 ILayer* Proto(INetworkDefinition* network,
               std::map<std::string, Weights>& weight_map, ITensor& input,
-              int c_, int c2, std::string lname) {
-  auto cv1 = convBlock(network, weight_map, input, c_, 3, 1, 1, lname + ".cv1");
+              int c_, int c2, std::string layer_name) {
+  auto cv1 = CreateConvoLayer(network, weight_map, input, c_, 3, 1, 1,
+                              layer_name + ".cv1");
 
   auto upsample = network->addResize(*cv1->getOutput(0));
   assert(upsample);
@@ -260,18 +250,18 @@ ILayer* Proto(INetworkDefinition* network,
   const float scales[] = {1, 2, 2};
   upsample->setScales(scales, 3);
 
-  auto cv2 = convBlock(network, weight_map, *upsample->getOutput(0), c_, 3, 1,
-                       1, lname + ".cv2");
-  auto cv3 = convBlock(network, weight_map, *cv2->getOutput(0), c2, 1, 1, 1,
-                       lname + ".cv3");
+  auto cv2 = CreateConvoLayer(network, weight_map, *upsample->getOutput(0), c_,
+                              3, 1, 1, layer_name + ".cv2");
+  auto cv3 = CreateConvoLayer(network, weight_map, *cv2->getOutput(0), c2, 1, 1,
+                              1, layer_name + ".cv3");
   assert(cv3);
   return cv3;
 }
 
 std::vector<std::vector<float>> getAnchors(
-    std::map<std::string, Weights>& weight_map, std::string lname) {
+    std::map<std::string, Weights>& weight_map, std::string layer_name) {
   std::vector<std::vector<float>> anchors;
-  Weights wts = weight_map[lname + ".anchor_grid"];
+  Weights wts = weight_map[layer_name + ".anchor_grid"];
   int anchor_len = kNumAnchor * 2;
   for (int i = 0; i < wts.count / anchor_len; i++) {
     auto* p = (const float*)wts.values + i * anchor_len;
@@ -283,11 +273,11 @@ std::vector<std::vector<float>> getAnchors(
 
 IPluginV2Layer* addYoLoLayer(INetworkDefinition* network,
                              std::map<std::string, Weights>& weight_map,
-                             std::string lname,
+                             std::string layer_name,
                              std::vector<IConvolutionLayer*> dets,
                              bool is_segmentation = false) {
   auto creator = getPluginRegistry()->getPluginCreator("YoloLayer_TRT", "1");
-  auto anchors = getAnchors(weight_map, lname);
+  auto anchors = getAnchors(weight_map, layer_name);
   PluginField plugin_fields[2];
   int netinfo[5] = {kNumClass, kInputW, kInputH, kMaxNumOutputBbox,
                     (int)is_segmentation};
@@ -297,9 +287,9 @@ IPluginV2Layer* addYoLoLayer(INetworkDefinition* network,
   plugin_fields[0].type = PluginFieldType::kFLOAT32;
 
   // load strides from Detect layer
-  assert(weight_map.find(lname + ".strides") != weight_map.end() &&
+  assert(weight_map.find(layer_name + ".strides") != weight_map.end() &&
          "Not found `strides`, please check gen_wts.py!!!");
-  Weights strides = weight_map[lname + ".strides"];
+  Weights strides = weight_map[layer_name + ".strides"];
   auto* p = (const float*)(strides.values);
   std::vector<int> scales(p, p + strides.count);
 
@@ -342,29 +332,32 @@ ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
   std::map<std::string, Weights> weight_map = loadWeights(wts_name);
 
   // Backbone
-  auto conv0 = convBlock(network, weight_map, *data, GetWidth(64, gw), 6, 2, 1,
-                         "model.0");
+  auto conv0 = CreateConvoLayer(network, weight_map, *data, GetWidth(64, gw), 6,
+                                2, 1, "model.0");
   assert(conv0);
-  auto conv1 = convBlock(network, weight_map, *conv0->getOutput(0),
-                         GetWidth(128, gw), 3, 2, 1, "model.1");
+  auto conv1 = CreateConvoLayer(network, weight_map, *conv0->getOutput(0),
+                                GetWidth(128, gw), 3, 2, 1, "model.1");
 
   auto bottleneck_CSP2 =
       C3(network, weight_map, *conv1->getOutput(0), GetWidth(128, gw),
          GetWidth(128, gw), GetDepth(3, gd), true, 1, 0.5, "model.2");
-  auto conv3 = convBlock(network, weight_map, *bottleneck_CSP2->getOutput(0),
-                         GetWidth(256, gw), 3, 2, 1, "model.3");
+  auto conv3 =
+      CreateConvoLayer(network, weight_map, *bottleneck_CSP2->getOutput(0),
+                       GetWidth(256, gw), 3, 2, 1, "model.3");
 
   auto bottleneck_csp4 =
       C3(network, weight_map, *conv3->getOutput(0), GetWidth(256, gw),
          GetWidth(256, gw), GetDepth(6, gd), true, 1, 0.5, "model.4");
-  auto conv5 = convBlock(network, weight_map, *bottleneck_csp4->getOutput(0),
-                         GetWidth(512, gw), 3, 2, 1, "model.5");
+  auto conv5 =
+      CreateConvoLayer(network, weight_map, *bottleneck_csp4->getOutput(0),
+                       GetWidth(512, gw), 3, 2, 1, "model.5");
 
   auto bottleneck_csp6 =
       C3(network, weight_map, *conv5->getOutput(0), GetWidth(512, gw),
          GetWidth(512, gw), GetDepth(9, gd), true, 1, 0.5, "model.6");
-  auto conv7 = convBlock(network, weight_map, *bottleneck_csp6->getOutput(0),
-                         GetWidth(1024, gw), 3, 2, 1, "model.7");
+  auto conv7 =
+      CreateConvoLayer(network, weight_map, *bottleneck_csp6->getOutput(0),
+                       GetWidth(1024, gw), 3, 2, 1, "model.7");
 
   auto bottleneck_csp8 =
       C3(network, weight_map, *conv7->getOutput(0), GetWidth(1024, gw),
@@ -373,8 +366,8 @@ ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
                    GetWidth(1024, gw), GetWidth(1024, gw), 5, "model.9");
 
   // Head
-  auto conv10 = convBlock(network, weight_map, *spp9->getOutput(0),
-                          GetWidth(512, gw), 1, 1, 1, "model.10");
+  auto conv10 = CreateConvoLayer(network, weight_map, *spp9->getOutput(0),
+                                 GetWidth(512, gw), 1, 1, 1, "model.10");
 
   auto upsample11 = network->addResize(*conv10->getOutput(0));
   assert(upsample11);
@@ -388,8 +381,9 @@ ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
   auto bottleneck_csp13 =
       C3(network, weight_map, *cat12->getOutput(0), GetWidth(1024, gw),
          GetWidth(512, gw), GetDepth(3, gd), false, 1, 0.5, "model.13");
-  auto conv14 = convBlock(network, weight_map, *bottleneck_csp13->getOutput(0),
-                          GetWidth(256, gw), 1, 1, 1, "model.14");
+  auto conv14 =
+      CreateConvoLayer(network, weight_map, *bottleneck_csp13->getOutput(0),
+                       GetWidth(256, gw), 1, 1, 1, "model.14");
 
   auto upsample15 = network->addResize(*conv14->getOutput(0));
   assert(upsample15);
@@ -409,8 +403,9 @@ ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
   IConvolutionLayer* det0 = network->addConvolutionNd(
       *bottleneck_csp17->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.0.weight"], weight_map["model.24.m.0.bias"]);
-  auto conv18 = convBlock(network, weight_map, *bottleneck_csp17->getOutput(0),
-                          GetWidth(256, gw), 3, 2, 1, "model.18");
+  auto conv18 =
+      CreateConvoLayer(network, weight_map, *bottleneck_csp17->getOutput(0),
+                       GetWidth(256, gw), 3, 2, 1, "model.18");
   ITensor* inputTensors19[] = {conv18->getOutput(0), conv14->getOutput(0)};
   auto cat19 = network->addConcatenation(inputTensors19, 2);
   auto bottleneck_csp20 =
@@ -419,8 +414,9 @@ ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
   IConvolutionLayer* det1 = network->addConvolutionNd(
       *bottleneck_csp20->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.1.weight"], weight_map["model.24.m.1.bias"]);
-  auto conv21 = convBlock(network, weight_map, *bottleneck_csp20->getOutput(0),
-                          GetWidth(512, gw), 3, 2, 1, "model.21");
+  auto conv21 =
+      CreateConvoLayer(network, weight_map, *bottleneck_csp20->getOutput(0),
+                       GetWidth(512, gw), 3, 2, 1, "model.21");
   ITensor* inputTensors22[] = {conv21->getOutput(0), conv10->getOutput(0)};
   auto cat22 = network->addConcatenation(inputTensors22, 2);
   auto bottleneck_csp23 =
@@ -479,26 +475,26 @@ ICudaEngine* build_det_p6_engine(unsigned int maxBatchSize, IBuilder* builder,
   std::map<std::string, Weights> weight_map = loadWeights(wts_name);
 
   // Backbone
-  auto conv0 = convBlock(network, weight_map, *data, GetWidth(64, gw), 6, 2, 1,
-                         "model.0");
-  auto conv1 = convBlock(network, weight_map, *conv0->getOutput(0),
-                         GetWidth(128, gw), 3, 2, 1, "model.1");
+  auto conv0 = CreateConvoLayer(network, weight_map, *data, GetWidth(64, gw), 6,
+                                2, 1, "model.0");
+  auto conv1 = CreateConvoLayer(network, weight_map, *conv0->getOutput(0),
+                                GetWidth(128, gw), 3, 2, 1, "model.1");
   auto c3_2 = C3(network, weight_map, *conv1->getOutput(0), GetWidth(128, gw),
                  GetWidth(128, gw), GetDepth(3, gd), true, 1, 0.5, "model.2");
-  auto conv3 = convBlock(network, weight_map, *c3_2->getOutput(0),
-                         GetWidth(256, gw), 3, 2, 1, "model.3");
+  auto conv3 = CreateConvoLayer(network, weight_map, *c3_2->getOutput(0),
+                                GetWidth(256, gw), 3, 2, 1, "model.3");
   auto c3_4 = C3(network, weight_map, *conv3->getOutput(0), GetWidth(256, gw),
                  GetWidth(256, gw), GetDepth(6, gd), true, 1, 0.5, "model.4");
-  auto conv5 = convBlock(network, weight_map, *c3_4->getOutput(0),
-                         GetWidth(512, gw), 3, 2, 1, "model.5");
+  auto conv5 = CreateConvoLayer(network, weight_map, *c3_4->getOutput(0),
+                                GetWidth(512, gw), 3, 2, 1, "model.5");
   auto c3_6 = C3(network, weight_map, *conv5->getOutput(0), GetWidth(512, gw),
                  GetWidth(512, gw), GetDepth(9, gd), true, 1, 0.5, "model.6");
-  auto conv7 = convBlock(network, weight_map, *c3_6->getOutput(0),
-                         GetWidth(768, gw), 3, 2, 1, "model.7");
+  auto conv7 = CreateConvoLayer(network, weight_map, *c3_6->getOutput(0),
+                                GetWidth(768, gw), 3, 2, 1, "model.7");
   auto c3_8 = C3(network, weight_map, *conv7->getOutput(0), GetWidth(768, gw),
                  GetWidth(768, gw), GetDepth(3, gd), true, 1, 0.5, "model.8");
-  auto conv9 = convBlock(network, weight_map, *c3_8->getOutput(0),
-                         GetWidth(1024, gw), 3, 2, 1, "model.9");
+  auto conv9 = CreateConvoLayer(network, weight_map, *c3_8->getOutput(0),
+                                GetWidth(1024, gw), 3, 2, 1, "model.9");
   auto c3_10 =
       C3(network, weight_map, *conv9->getOutput(0), GetWidth(1024, gw),
          GetWidth(1024, gw), GetDepth(3, gd), true, 1, 0.5, "model.10");
@@ -506,8 +502,8 @@ ICudaEngine* build_det_p6_engine(unsigned int maxBatchSize, IBuilder* builder,
                      GetWidth(1024, gw), GetWidth(1024, gw), 5, "model.11");
 
   // Head
-  auto conv12 = convBlock(network, weight_map, *sppf11->getOutput(0),
-                          GetWidth(768, gw), 1, 1, 1, "model.12");
+  auto conv12 = CreateConvoLayer(network, weight_map, *sppf11->getOutput(0),
+                                 GetWidth(768, gw), 1, 1, 1, "model.12");
   auto upsample13 = network->addResize(*conv12->getOutput(0));
   assert(upsample13);
   upsample13->setResizeMode(ResizeMode::kNEAREST);
@@ -518,8 +514,8 @@ ICudaEngine* build_det_p6_engine(unsigned int maxBatchSize, IBuilder* builder,
       C3(network, weight_map, *cat14->getOutput(0), GetWidth(1536, gw),
          GetWidth(768, gw), GetDepth(3, gd), false, 1, 0.5, "model.15");
 
-  auto conv16 = convBlock(network, weight_map, *c3_15->getOutput(0),
-                          GetWidth(512, gw), 1, 1, 1, "model.16");
+  auto conv16 = CreateConvoLayer(network, weight_map, *c3_15->getOutput(0),
+                                 GetWidth(512, gw), 1, 1, 1, "model.16");
   auto upsample17 = network->addResize(*conv16->getOutput(0));
   assert(upsample17);
   upsample17->setResizeMode(ResizeMode::kNEAREST);
@@ -530,8 +526,8 @@ ICudaEngine* build_det_p6_engine(unsigned int maxBatchSize, IBuilder* builder,
       C3(network, weight_map, *cat18->getOutput(0), GetWidth(1024, gw),
          GetWidth(512, gw), GetDepth(3, gd), false, 1, 0.5, "model.19");
 
-  auto conv20 = convBlock(network, weight_map, *c3_19->getOutput(0),
-                          GetWidth(256, gw), 1, 1, 1, "model.20");
+  auto conv20 = CreateConvoLayer(network, weight_map, *c3_19->getOutput(0),
+                                 GetWidth(256, gw), 1, 1, 1, "model.20");
   auto upsample21 = network->addResize(*conv20->getOutput(0));
   assert(upsample21);
   upsample21->setResizeMode(ResizeMode::kNEAREST);
@@ -542,24 +538,24 @@ ICudaEngine* build_det_p6_engine(unsigned int maxBatchSize, IBuilder* builder,
       C3(network, weight_map, *cat22->getOutput(0), GetWidth(512, gw),
          GetWidth(256, gw), GetDepth(3, gd), false, 1, 0.5, "model.23");
 
-  auto conv24 = convBlock(network, weight_map, *c3_23->getOutput(0),
-                          GetWidth(256, gw), 3, 2, 1, "model.24");
+  auto conv24 = CreateConvoLayer(network, weight_map, *c3_23->getOutput(0),
+                                 GetWidth(256, gw), 3, 2, 1, "model.24");
   ITensor* inputTensors25[] = {conv24->getOutput(0), conv20->getOutput(0)};
   auto cat25 = network->addConcatenation(inputTensors25, 2);
   auto c3_26 =
       C3(network, weight_map, *cat25->getOutput(0), GetWidth(1024, gw),
          GetWidth(512, gw), GetDepth(3, gd), false, 1, 0.5, "model.26");
 
-  auto conv27 = convBlock(network, weight_map, *c3_26->getOutput(0),
-                          GetWidth(512, gw), 3, 2, 1, "model.27");
+  auto conv27 = CreateConvoLayer(network, weight_map, *c3_26->getOutput(0),
+                                 GetWidth(512, gw), 3, 2, 1, "model.27");
   ITensor* inputTensors28[] = {conv27->getOutput(0), conv16->getOutput(0)};
   auto cat28 = network->addConcatenation(inputTensors28, 2);
   auto c3_29 =
       C3(network, weight_map, *cat28->getOutput(0), GetWidth(1536, gw),
          GetWidth(768, gw), GetDepth(3, gd), false, 1, 0.5, "model.29");
 
-  auto conv30 = convBlock(network, weight_map, *c3_29->getOutput(0),
-                          GetWidth(768, gw), 3, 2, 1, "model.30");
+  auto conv30 = CreateConvoLayer(network, weight_map, *c3_29->getOutput(0),
+                                 GetWidth(768, gw), 3, 2, 1, "model.30");
   ITensor* inputTensors31[] = {conv30->getOutput(0), conv12->getOutput(0)};
   auto cat31 = network->addConcatenation(inputTensors31, 2);
   auto c3_32 =
