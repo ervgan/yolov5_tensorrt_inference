@@ -162,38 +162,6 @@ ILayer* bottleneck(INetworkDefinition* network,
   return cv2;
 }
 
-ILayer* bottleneckCSP(INetworkDefinition* network,
-                      std::map<std::string, Weights>& weightMap, ITensor& input,
-                      int c1, int c2, int n, bool shortcut, int g, float e,
-                      std::string lname) {
-  Weights emptywts{DataType::kFLOAT, nullptr, 0};
-  int c_ = (int)((float)c2 * e);
-  auto cv1 = convBlock(network, weightMap, input, c_, 1, 1, 1, lname + ".cv1");
-  auto cv2 = network->addConvolutionNd(
-      input, c_, DimsHW{1, 1}, weightMap[lname + ".cv2.weight"], emptywts);
-  ITensor* y1 = cv1->getOutput(0);
-  for (int i = 0; i < n; i++) {
-    auto b = bottleneck(network, weightMap, *y1, c_, c_, shortcut, g, 1.0,
-                        lname + ".m." + std::to_string(i));
-    y1 = b->getOutput(0);
-  }
-  auto cv3 = network->addConvolutionNd(
-      *y1, c_, DimsHW{1, 1}, weightMap[lname + ".cv3.weight"], emptywts);
-
-  ITensor* inputTensors[] = {cv3->getOutput(0), cv2->getOutput(0)};
-  auto cat = network->addConcatenation(inputTensors, 2);
-
-  IScaleLayer* bn = addBatchNorm2d(network, weightMap, *cat->getOutput(0),
-                                   lname + ".bn", 1e-4);
-  auto lr =
-      network->addActivation(*bn->getOutput(0), ActivationType::kLEAKY_RELU);
-  lr->setAlpha(0.1);
-
-  auto cv4 = convBlock(network, weightMap, *lr->getOutput(0), c2, 1, 1, 1,
-                       lname + ".cv4");
-  return cv4;
-}
-
 ILayer* C3(INetworkDefinition* network,
            std::map<std::string, Weights>& weightMap, ITensor& input, int c1,
            int c2, int n, bool shortcut, int g, float e, std::string lname) {
@@ -367,21 +335,25 @@ ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
   assert(conv0);
   auto conv1 = convBlock(network, weightMap, *conv0->getOutput(0),
                          get_width(128, gw), 3, 2, 1, "model.1");
+
   auto bottleneck_CSP2 =
       C3(network, weightMap, *conv1->getOutput(0), get_width(128, gw),
          get_width(128, gw), get_depth(3, gd), true, 1, 0.5, "model.2");
   auto conv3 = convBlock(network, weightMap, *bottleneck_CSP2->getOutput(0),
                          get_width(256, gw), 3, 2, 1, "model.3");
+
   auto bottleneck_csp4 =
       C3(network, weightMap, *conv3->getOutput(0), get_width(256, gw),
          get_width(256, gw), get_depth(6, gd), true, 1, 0.5, "model.4");
   auto conv5 = convBlock(network, weightMap, *bottleneck_csp4->getOutput(0),
                          get_width(512, gw), 3, 2, 1, "model.5");
+
   auto bottleneck_csp6 =
       C3(network, weightMap, *conv5->getOutput(0), get_width(512, gw),
          get_width(512, gw), get_depth(9, gd), true, 1, 0.5, "model.6");
   auto conv7 = convBlock(network, weightMap, *bottleneck_csp6->getOutput(0),
                          get_width(1024, gw), 3, 2, 1, "model.7");
+
   auto bottleneck_csp8 =
       C3(network, weightMap, *conv7->getOutput(0), get_width(1024, gw),
          get_width(1024, gw), get_depth(3, gd), true, 1, 0.5, "model.8");
