@@ -51,7 +51,7 @@ std::map<std::string, Weights> LoadWeights(const std::string& file) {
   return weight_map;
 }
 
-// nb of output feature maps
+// nb of output maps
 int GetWidth(int x, float gw) {
   const int divisor = 8;
   return int(ceil((x * gw) / divisor)) * divisor;
