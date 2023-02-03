@@ -19,7 +19,7 @@ class Parser:
             "-o", "--output", help="Output (.wts) file path (optional)"
         )
 
-    def parse_args(self):
+    def parse(self):
         self.args = self.parser.parse_args()
         if not os.path.isfile(self.args.weights):
             raise SystemExit("Invalid input file")
@@ -50,7 +50,8 @@ class WTSConverter:
             self.model.model[-1].anchors * self.model.model[-1].stride[..., None, None]
         )
         delattr(self.model.model[-1], "anchor_grid")  # model.model[-1] is detect layer
-        # The parameters are saved in the OrderDict through the "register_buffer" method, and then saved to the weight.
+        # The parameters are saved in the OrderDict through the "register_buffer" method
+        # and then saved to the weight.
         self.model.model[-1].register_buffer("anchor_grid", anchor_grid)
         self.model.model[-1].register_buffer("strides", self.model.model[-1].stride)
         self.model.to(self.device).eval()
@@ -63,6 +64,7 @@ class WTSConverter:
             for param, tensor in self.model.state_dict().items():
                 np_array = tensor.reshape(-1).cpu().numpy()
                 file.write("{} {} ".format(param, len(np_array)))
+
                 for weight in np_array:
                     file.write(" ")
                     file.write(struct.pack(">f", float(weight)).hex())
@@ -71,9 +73,13 @@ class WTSConverter:
 
 def main():
     parser = Parser()
-    args = parser.parse_args()
+    args = parser.parse()
     pt_file, output_file = args
-    wts_converter = WTSConverter()
+    wts_converter = WTSConverter(pt_file, output_file)
     print(f"Generating .wts for detection model")
-    wts_converter.load_model(pt_file, output_file)
+    wts_converter.load_model()
     wts_converter.write_wts_file()
+
+
+if __name__ == "__main__":
+    main()
