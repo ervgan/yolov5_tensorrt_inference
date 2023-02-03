@@ -80,25 +80,25 @@ IScaleLayer* AddBatchNorm2D(INetworkDefinition* network,
   float* beta = (float*)weight_map[layer_name + ".bias"].values;
   float* mean = (float*)weight_map[layer_name + ".running_mean"].values;
   float* var = (float*)weight_map[layer_name + ".running_var"].values;
-  int len = weight_map[layer_name + ".running_var"].count;
+  const int kLen = weight_map[layer_name + ".running_var"].count;
 
-  float* scale_values = reinterpret_cast<float*>(malloc(sizeof(float) * len));
-  for (int i = 0; i < len; i++) {
+  float* scale_values = reinterpret_cast<float*>(malloc(sizeof(float) * kLen));
+  for (int i = 0; i < kLen; i++) {
     scale_values[i] = gamma[i] / sqrt(var[i] + eps);
   }
-  Weights scale{DataType::kFLOAT, scale_values, len};
+  Weights scale{DataType::kFLOAT, scale_values, kLen};
 
-  float* shift_values = reinterpret_cast<float*>(malloc(sizeof(float) * len));
-  for (int i = 0; i < len; i++) {
+  float* shift_values = reinterpret_cast<float*>(malloc(sizeof(float) * kLen));
+  for (int i = 0; i < kLen; i++) {
     shift_values[i] = beta[i] - mean[i] * gamma[i] / sqrt(var[i] + eps);
   }
-  Weights shift{DataType::kFLOAT, shift_values, len};
+  Weights shift{DataType::kFLOAT, shift_values, kLen};
 
-  float* power_values = reinterpret_cast<float*>(malloc(sizeof(float) * len));
-  for (int i = 0; i < len; i++) {
+  float* power_values = reinterpret_cast<float*>(malloc(sizeof(float) * kLen));
+  for (int i = 0; i < kLen; i++) {
     power_values[i] = 1.0;
   }
-  Weights power{DataType::kFLOAT, power_values, len};
+  Weights power{DataType::kFLOAT, power_values, kLen};
 
   weight_map[layer_name + ".scale"] = scale;
   weight_map[layer_name + ".shift"] = shift;
@@ -116,7 +116,7 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
                          const ITensor& input, int output, int kernel_size,
                          int stride, int nb_groups, std::string layer_name) {
   Weights empty_wts{DataType::kFLOAT, nullptr, 0};
-  const int padding = kernel_size / 3;
+  const int kPadding = kernel_size / 3;
   IConvolutionLayer* convo_layer = network->addConvolutionNd(
       input, output, DimsHW{kernel_size, kernel_size},
       weight_map[layer_name + ".conv.weight"], empty_wts);
@@ -124,7 +124,7 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
   assert(convo_layer);
 
   convo_layer->setStrideNd(DimsHW{stride, stride});
-  convo_layer->setPaddingNd(DimsHW{padding, padding});
+  convo_layer->setPaddingNd(DimsHW{kPadding, kPadding});
   convo_layer->setNbGroups(nb_groups);
   convo_layer->setName((layer_name + ".conv").c_str());
   IScaleLayer* batch_norm_layer =
@@ -142,25 +142,34 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
   return silu_activation;
 }
 
-ILayer* bottleneck(INetworkDefinition* network,
-                   std::map<std::string, Weights>& weight_map, ITensor& input,
-                   int c1, int c2, bool shortcut, int g, float e,
-                   std::string layer_name) {
-  auto cv1 = CreateConvoLayer(network, weight_map, input, (int)((float)c2 * e),
-                              1, 1, 1, layer_name + ".cv1");
-  auto cv2 = CreateConvoLayer(network, weight_map, *cv1->getOutput(0), c2, 3, 1,
-                              g, layer_name + ".cv2");
+// Creates CreateBottleneckLayer layer
+ILayer* CreateBottleneckLayer(INetworkDefinition* network,
+                              std::map<std::string, Weights>& weight_map,
+                              const ITensor& input, int c1, int c2,
+                              bool shortcut, int nb_groups, float e,
+                              std::string layer_name) {
+  const int kOutputMaps1 = (int)((float)c2 * e);
+  const int kKernelSize1 = 1;
+  const int kStride1 = 1;
+  const int kNbGroups1 = 1;
+  const int kKernelSize2 = 3;
+  const int kStride2 = 1;
+  auto convo_layer_1 = CreateConvoLayer(network, weight_map, input, kOutputMaps1),
+                              kKernelSize1, kStride1, kNbGroups1, layer_name + ".cv1");
+  auto convo_layer_2 =
+      CreateConvoLayer(network, weight_map, *convo_layer_1->getOutput(0), c2,
+                       kKernelSize2, kStride2, nb_groups, layer_name + ".cv2");
   if (shortcut && c1 == c2) {
-    auto ew = network->addElementWise(input, *cv2->getOutput(0),
-                                      ElementWiseOperation::kSUM);
-    return ew;
+    auto element_wise_layer = network->addElementWise(
+        input, *convo_layer_2->getOutput(0), ElementWiseOperation::kSUM);
+    return element_wise_layer;
   }
-  return cv2;
+  return convo_layer_2;
 }
 
 ILayer* C3(INetworkDefinition* network,
            std::map<std::string, Weights>& weight_map, ITensor& input, int c1,
-           int c2, int n, bool shortcut, int g, float e,
+           int c2, int n, bool shortcut, int nb_groups, float e,
            std::string layer_name) {
   int c_ = (int)((float)c2 * e);
   auto cv1 = CreateConvoLayer(network, weight_map, input, c_, 1, 1, 1,
@@ -169,8 +178,9 @@ ILayer* C3(INetworkDefinition* network,
                               layer_name + ".cv2");
   ITensor* y1 = cv1->getOutput(0);
   for (int i = 0; i < n; i++) {
-    auto b = bottleneck(network, weight_map, *y1, c_, c_, shortcut, g, 1.0,
-                        layer_name + ".m." + std::to_string(i));
+    auto b = CreateBottleneckLayer(network, weight_map, *y1, c_, c_, shortcut,
+                                   nb_groups, 1.0,
+                                   layer_name + ".m." + std::to_string(i));
     y1 = b->getOutput(0);
   }
 
