@@ -310,8 +310,6 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
   return yolo;
 }
 
-}  // namespace
-
 ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
                               IBuilderConfig* config, DataType dt, float& gd,
                               float& gw, std::string& wts_name) {
