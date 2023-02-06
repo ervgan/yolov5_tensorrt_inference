@@ -32,7 +32,7 @@ std::map<std::string, Weights> LoadWeights(const std::string& file) {
   assert(count > 0 && "Invalid weight map file.");
   // get weights for each
   while (count--) {
-    Weights weight<{DataType::kFLOAT, nullptr, 0}>;
+    Weights weight{DataType::kFLOAT, nullptr, 0};
     uint32_t size;
     // Read name and type of blob
     std::string name;
@@ -76,7 +76,7 @@ int getDepth(int depth, float depth_multiplier) {
 // returns normalized layer
 IScaleLayer* AddBatchNorm2D(INetworkDefinition* network,
                             std::map<std::string, Weights>& weight_map,
-                            const ITensor& input, const std::string& layer_name,
+                            ITensor& input, const std::string& layer_name,
                             float eps) {
   float* gamma = (float*)weight_map[layer_name + ".weight"].values;
   float* beta = (float*)weight_map[layer_name + ".bias"].values;
@@ -115,7 +115,7 @@ IScaleLayer* AddBatchNorm2D(INetworkDefinition* network,
 // returns a single TensorRT layer
 ILayer* CreateConvoLayer(INetworkDefinition* network,
                          std::map<std::string, Weights>& weight_map,
-                         const ITensor& input, int output, int kernel_size,
+                         ITensor& input, int output, int kernel_size,
                          int stride, int nb_groups,
                          const std::string& layer_name) {
   Weights empty_wts{DataType::kFLOAT, nullptr, 0};
@@ -138,9 +138,9 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
   auto sigmoid_activation = network->addActivation(
       *batch_norm_layer->getOutput(0), ActivationType::kSIGMOID);
   assert(sigmoid_activation);
-  auto silu_activation =
-      network->addElementWise(*batch_norm_layer->getOutput(0),
-                              *sig->getOutput(0), ElementWiseOperation::kPROD);
+  auto silu_activation = network->addElementWise(
+      *batch_norm_layer->getOutput(0), *sigmoid_activation->getOutput(0),
+      ElementWiseOperation::kPROD);
   assert(silu_activation);
   return silu_activation;
 }
@@ -148,7 +148,7 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
 // Creates Bottleneck Layer
 ILayer* CreateBottleneckLayer(INetworkDefinition* network,
                               std::map<std::string, Weights>& weight_map,
-                              const ITensor& input, int intput_channel,
+                              ITensor& input, int intput_channel,
                               int output_channel, bool shortcut, int nb_groups,
                               float expansion, const std::string& layer_name) {
   const int kOutputMaps1 = (int)((float)output_channel * expansion);
@@ -158,8 +158,9 @@ ILayer* CreateBottleneckLayer(INetworkDefinition* network,
   const int kKernelSize2 = 3;
   const int kStride2 = 1;
 
-  auto convo_layer_1 = CreateConvoLayer(network, weight_map, input, kOutputMaps1),
-                              kKernelSize1, kStride1, kNbGroups1, layer_name + ".cv1");
+  auto convo_layer_1 =
+      CreateConvoLayer(network, weight_map, input, kOutputMaps1, kKernelSize1,
+                       kStride1, kNbGroups1, layer_name + ".cv1");
 
   auto convo_layer_2 = CreateConvoLayer(
       network, weight_map, *convo_layer_1->getOutput(0), output_channel,
@@ -320,7 +321,7 @@ ICudaEngine* build_det_engine(unsigned int maxBatchSize, IBuilder* builder,
   ITensor* data =
       network->addInput(kInputTensorName, dt, Dims3{3, kInputH, kInputW});
   assert(data);
-  std::map<std::string, Weights> weight_map = loadWeights(wts_name);
+  std::map<std::string, Weights> weight_map = LoadWeights(wts_name);
 
   // Backbone
   auto conv0 = CreateConvoLayer(network, weight_map, *data, getWidth(64, gw), 6,
@@ -464,7 +465,7 @@ ICudaEngine* build_det_p6_engine(unsigned int maxBatchSize, IBuilder* builder,
       network->addInput(kInputTensorName, dt, Dims3{3, kInputH, kInputW});
   assert(data);
 
-  std::map<std::string, Weights> weight_map = loadWeights(wts_name);
+  std::map<std::string, Weights> weight_map = LoadWeights(wts_name);
 
   // Backbone
   auto conv0 = CreateConvoLayer(network, weight_map, *data, getWidth(64, gw), 6,
