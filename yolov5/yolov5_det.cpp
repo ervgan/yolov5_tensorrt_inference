@@ -16,7 +16,7 @@ const static int kOutputSize =
     kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 
 bool parse_args(int argc, char** argv, std::string& wts, std::string& engine,
-                bool& is_p6, float& gd, float& gw, std::string& img_dir) {
+                float& gd, float& gw, std::string& img_dir) {
   if (argc < 4) return false;
   if (std::string(argv[1]) == "-s" && (argc == 5 || argc == 7)) {
     wts = std::string(argv[2]);
@@ -42,9 +42,6 @@ bool parse_args(int argc, char** argv, std::string& wts, std::string& engine,
       gw = atof(argv[6]);
     } else {
       return false;
-    }
-    if (net.size() == 2 && net[1] == '6') {
-      is_p6 = true;
     }
   } else if (std::string(argv[1]) == "-d" && argc == 4) {
     engine = std::string(argv[2]);
@@ -83,9 +80,8 @@ void infer(IExecutionContext& context, cudaStream_t& stream, void** gpu_buffers,
   cudaStreamSynchronize(stream);
 }
 
-void serialize_engine(unsigned int max_batchsize, bool& is_p6, float& gd,
-                      float& gw, std::string& wts_name,
-                      std::string& engine_name) {
+void serialize_engine(unsigned int max_batchsize, float& gd, float& gw,
+                      std::string& wts_name, std::string& engine_name) {
   // Create builder
   IBuilder* builder = createInferBuilder(gLogger);
   IBuilderConfig* config = builder->createBuilderConfig();
@@ -93,13 +89,8 @@ void serialize_engine(unsigned int max_batchsize, bool& is_p6, float& gd,
   // Create model to populate the network, then set the outputs and create an
   // engine
   ICudaEngine* engine = nullptr;
-  if (is_p6) {
-    engine = build_det_p6_engine(max_batchsize, builder, config,
-                                 DataType::kFLOAT, gd, gw, wts_name);
-  } else {
-    engine = build_det_engine(max_batchsize, builder, config, DataType::kFLOAT,
-                              gd, gw, wts_name);
-  }
+  engine = BuildDetectionEngine(max_batchsize, builder, config,
+                                DataType::kFLOAT, gd, gw, wts_name);
   assert(engine != nullptr);
 
   // Serialize the engine
@@ -152,11 +143,10 @@ int main(int argc, char** argv) {
 
   std::string wts_name = "";
   std::string engine_name = "";
-  bool is_p6 = false;
   float gd = 0.0f, gw = 0.0f;
   std::string img_dir;
 
-  if (!parse_args(argc, argv, wts_name, engine_name, is_p6, gd, gw, img_dir)) {
+  if (!parse_args(argc, argv, wts_name, engine_name, gd, gw, img_dir)) {
     std::cerr << "arguments not right!" << std::endl;
     std::cerr << "./yolov5_det -s [.wts] [.engine] [n/s/m/l/x/n6/s6/m6/l6/x6 "
                  "or c/c6 gd gw]  // serialize model to plan file"
@@ -169,7 +159,7 @@ int main(int argc, char** argv) {
 
   // Create a model using the API directly and serialize it to a file
   if (!wts_name.empty()) {
-    serialize_engine(kBatchSize, is_p6, gd, gw, wts_name, engine_name);
+    serialize_engine(kBatchSize, gd, gw, wts_name, engine_name);
     return 0;
   }
 
