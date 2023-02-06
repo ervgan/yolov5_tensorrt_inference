@@ -305,9 +305,9 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
   for (auto det : dets) {
     input_tensors.push_back(det->getOutput(0));
   }
-  auto yolo = network->addPluginV2(&input_tensors[0], input_tensors.size(),
-                                   *plugin_obj);
-  return yolo;
+  auto yolo_layer = network->addPluginV2(&input_tensors[0],
+                                         input_tensors.size(), *plugin_obj);
+  return yolo_layer;
 }
 
 ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
@@ -323,133 +323,147 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
   assert(data);
   std::map<std::string, Weights> weight_map = LoadWeights(wts_file_name);
 
-  // Backbone
+  // Backbone layers
   auto convo_layer_0 =
       CreateConvoLayer(network, weight_map, *data,
                        getWidth(64, width_multiplier), 6, 2, 1, "model.0");
   assert(convo_layer_0);
-  auto conv1 =
+  auto convo_layer_1 =
       CreateConvoLayer(network, weight_map, *convo_layer_0->getOutput(0),
                        getWidth(128, width_multiplier), 3, 2, 1, "model.1");
 
-  auto bottleneck_CSP2 = CreateC3Bottleneck(
-      network, weight_map, *conv1->getOutput(0),
+  auto bottleneck_layer_2 = CreateC3Bottleneck(
+      network, weight_map, *convo_layer_1->getOutput(0),
       getWidth(128, width_multiplier), getWidth(128, width_multiplier),
       getDepth(3, depth_multiplier), true, 1, 0.5, "model.2");
-  auto conv3 =
-      CreateConvoLayer(network, weight_map, *bottleneck_CSP2->getOutput(0),
+
+  auto convo_layer_3 =
+      CreateConvoLayer(network, weight_map, *bottleneck_layer_2->getOutput(0),
                        getWidth(256, width_multiplier), 3, 2, 1, "model.3");
 
-  auto bottleneck_csp4 = CreateC3Bottleneck(
-      network, weight_map, *conv3->getOutput(0),
+  auto bottleneck_layer_4 = CreateC3Bottleneck(
+      network, weight_map, *convo_layer_3->getOutput(0),
       getWidth(256, width_multiplier), getWidth(256, width_multiplier),
       getDepth(6, depth_multiplier), true, 1, 0.5, "model.4");
-  auto conv5 =
-      CreateConvoLayer(network, weight_map, *bottleneck_csp4->getOutput(0),
+
+  auto convo_layer_5 =
+      CreateConvoLayer(network, weight_map, *bottleneck_layer_4->getOutput(0),
                        getWidth(512, width_multiplier), 3, 2, 1, "model.5");
 
-  auto bottleneck_csp6 = CreateC3Bottleneck(
-      network, weight_map, *conv5->getOutput(0),
+  auto bottleneck_layer_6 = CreateC3Bottleneck(
+      network, weight_map, *convo_layer_5->getOutput(0),
       getWidth(512, width_multiplier), getWidth(512, width_multiplier),
       getDepth(9, depth_multiplier), true, 1, 0.5, "model.6");
-  auto conv7 =
-      CreateConvoLayer(network, weight_map, *bottleneck_csp6->getOutput(0),
+
+  auto convo_layer_7 =
+      CreateConvoLayer(network, weight_map, *bottleneck_layer_6->getOutput(0),
                        getWidth(1024, width_multiplier), 3, 2, 1, "model.7");
 
-  auto bottleneck_csp8 = CreateC3Bottleneck(
-      network, weight_map, *conv7->getOutput(0),
+  auto bottleneck_layer_8 = CreateC3Bottleneck(
+      network, weight_map, *convo_layer_7->getOutput(0),
       getWidth(1024, width_multiplier), getWidth(1024, width_multiplier),
       getDepth(3, depth_multiplier), true, 1, 0.5, "model.8");
-  auto spp9 =
-      CreateSPPFLayer(network, weight_map, *bottleneck_csp8->getOutput(0),
+
+  auto spp_layer_9 =
+      CreateSPPFLayer(network, weight_map, *bottleneck_layer_8->getOutput(0),
                       getWidth(1024, width_multiplier),
                       getWidth(1024, width_multiplier), 5, "model.9");
 
-  // Head
-  auto conv10 =
-      CreateConvoLayer(network, weight_map, *spp9->getOutput(0),
+  // Head layer
+  auto convo_layer_10 =
+      CreateConvoLayer(network, weight_map, *spp_layer_9->getOutput(0),
                        getWidth(512, width_multiplier), 1, 1, 1, "model.10");
 
-  auto upsample11 = network->addResize(*conv10->getOutput(0));
-  assert(upsample11);
-  upsample11->setResizeMode(ResizeMode::kNEAREST);
-  upsample11->setOutputDimensions(
-      bottleneck_csp6->getOutput(0)->getDimensions());
+  // Layer increasing spatial resolution of image
+  auto upsample_layer_11 = network->addResize(*convo_layer_10->getOutput(0));
+  assert(upsample_layer_11);
+  upsample_layer_11->setResizeMode(ResizeMode::kNEAREST);
+  upsample_layer_11->setOutputDimensions(
+      bottleneck_layer_6->getOutput(0)->getDimensions());
 
-  ITensor* inputTensors12[] = {upsample11->getOutput(0),
-                               bottleneck_csp6->getOutput(0)};
-  auto cat12 = network->addConcatenation(inputTensors12, 2);
-  auto bottleneck_csp13 = CreateC3Bottleneck(
-      network, weight_map, *cat12->getOutput(0),
+  ITensor* input_tensors_layer_12[] = {upsample_layer_11->getOutput(0),
+                                       bottleneck_layer_6->getOutput(0)};
+
+  auto concatenation_layer_12 =
+      network->addConcatenation(input_tensors_layer_12, 2);
+
+  auto bottleneck_layer_13 = CreateC3Bottleneck(
+      network, weight_map, *concatenation_layer_12->getOutput(0),
       getWidth(1024, width_multiplier), getWidth(512, width_multiplier),
       getDepth(3, depth_multiplier), false, 1, 0.5, "model.13");
-  auto conv14 =
-      CreateConvoLayer(network, weight_map, *bottleneck_csp13->getOutput(0),
+
+  auto convo_layer_14 =
+      CreateConvoLayer(network, weight_map, *bottleneck_layer_13->getOutput(0),
                        getWidth(256, width_multiplier), 1, 1, 1, "model.14");
 
-  auto upsample15 = network->addResize(*conv14->getOutput(0));
-  assert(upsample15);
-  upsample15->setResizeMode(ResizeMode::kNEAREST);
-  upsample15->setOutputDimensions(
-      bottleneck_csp4->getOutput(0)->getDimensions());
+  auto upsample_layer_15 = network->addResize(*convo_layer_14->getOutput(0));
+  assert(upsample_layer_15);
+  upsample_layer_15->setResizeMode(ResizeMode::kNEAREST);
+  upsample_layer_15->setOutputDimensions(
+      bottleneck_layer_4->getOutput(0)->getDimensions());
 
-  ITensor* inputTensors16[] = {upsample15->getOutput(0),
-                               bottleneck_csp4->getOutput(0)};
-  auto cat16 = network->addConcatenation(inputTensors16, 2);
+  ITensor* input_tensors_layer_16[] = {upsample_layer_15->getOutput(0),
+                                       bottleneck_layer_4->getOutput(0)};
+  auto concatenation_layer_16 =
+      network->addConcatenation(input_tensors_layer_16, 2);
 
-  auto bottleneck_csp17 = CreateC3Bottleneck(
-      network, weight_map, *cat16->getOutput(0),
+  auto bottleneck_layer_17 = CreateC3Bottleneck(
+      network, weight_map, *concatenation_layer_16->getOutput(0),
       getWidth(512, width_multiplier), getWidth(256, width_multiplier),
       getDepth(3, depth_multiplier), false, 1, 0.5, "model.17");
 
   // Detect
   IConvolutionLayer* det0 = network->addConvolutionNd(
-      *bottleneck_csp17->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
+      *bottleneck_layer_17->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.0.weight"], weight_map["model.24.m.0.bias"]);
-  auto conv18 =
-      CreateConvoLayer(network, weight_map, *bottleneck_csp17->getOutput(0),
+
+  auto convo_layer_18 =
+      CreateConvoLayer(network, weight_map, *bottleneck_layer_17->getOutput(0),
                        getWidth(256, width_multiplier), 3, 2, 1, "model.18");
-  ITensor* inputTensors19[] = {conv18->getOutput(0), conv14->getOutput(0)};
-  auto cat19 = network->addConcatenation(inputTensors19, 2);
-  auto bottleneck_csp20 = CreateC3Bottleneck(
+
+  ITensor* input_tensors_layer_19[] = {convo_layer_18->getOutput(0),
+                                       convo_layer_14->getOutput(0)};
+  auto cat19 = network->addConcatenation(input_tensors_layer_19, 2);
+
+  auto bottleneck_layer_20 = CreateC3Bottleneck(
       network, weight_map, *cat19->getOutput(0),
       getWidth(512, width_multiplier), getWidth(512, width_multiplier),
       getDepth(3, depth_multiplier), false, 1, 0.5, "model.20");
+
   IConvolutionLayer* det1 = network->addConvolutionNd(
-      *bottleneck_csp20->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
+      *bottleneck_layer_20->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.1.weight"], weight_map["model.24.m.1.bias"]);
-  auto conv21 =
-      CreateConvoLayer(network, weight_map, *bottleneck_csp20->getOutput(0),
+
+  auto convo_layer_21 =
+      CreateConvoLayer(network, weight_map, *bottleneck_layer_20->getOutput(0),
                        getWidth(512, width_multiplier), 3, 2, 1, "model.21");
-  ITensor* inputTensors22[] = {conv21->getOutput(0), conv10->getOutput(0)};
-  auto cat22 = network->addConcatenation(inputTensors22, 2);
-  auto bottleneck_csp23 = CreateC3Bottleneck(
-      network, weight_map, *cat22->getOutput(0),
+
+  ITensor* input_tensors_layer_22[] = {convo_layer_21->getOutput(0),
+                                       convo_layer_10->getOutput(0)};
+
+  auto concatenation_layer_22 =
+      network->addConcatenation(input_tensors_layer_22, 2);
+
+  auto bottleneck_layer_23 = CreateC3Bottleneck(
+      network, weight_map, *concatenation_layer_22->getOutput(0),
       getWidth(1024, width_multiplier), getWidth(1024, width_multiplier),
       getDepth(3, depth_multiplier), false, 1, 0.5, "model.23");
+
   IConvolutionLayer* det2 = network->addConvolutionNd(
-      *bottleneck_csp23->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
+      *bottleneck_layer_23->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.2.weight"], weight_map["model.24.m.2.bias"]);
 
-  auto yolo = AddYoLoLayer(network, weight_map, "model.24",
-                           std::vector<IConvolutionLayer*>{det0, det1, det2});
-  yolo->getOutput(0)->setName(kOutputTensorName);
-  network->markOutput(*yolo->getOutput(0));
+  auto yolo_layer =
+      AddYoLoLayer(network, weight_map, "model.24",
+                   std::vector<IConvolutionLayer*>{det0, det1, det2});
+  yolo_layer->getOutput(0)->setName(kOutputTensorName);
+  network->markOutput(*yolo_layer->getOutput(0));
 
   // Engine config
   builder->setMaxBatchSize(maxBatchSize);
   config->setMaxWorkspaceSize(16 * (1 << 20));  // 16MB
 #if defined(USE_FP16)
   config->setFlag(BuilderFlag::kFP16);
-#elif defined(USE_INT8)
-  std::cout << "Your platform support int8: "
-            << (builder->platformHasFastInt8() ? "true" : "false") << std::endl;
-  assert(builder->platformHasFastInt8());
-  config->setFlag(BuilderFlag::kINT8);
-  Int8EntropyCalibrator2* calibrator =
-      new Int8EntropyCalibrator2(1, kInputW, kInputH, "./coco_calib/",
-                                 "int8calib.table", kInputTensorName);
-  config->setInt8Calibrator(calibrator);
 #endif
 
   std::cout << "Building engine, please wait for a while..." << std::endl;
