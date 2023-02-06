@@ -38,15 +38,4 @@ target_link_libraries(yolov5_det cudart)
 target_link_libraries(yolov5_det myplugins)
 target_link_libraries(yolov5_det ${OpenCV_LIBS})
 
-add_executable(yolov5_cls yolov5_cls.cpp ${SRCS})
-target_link_libraries(yolov5_cls nvinfer)
-target_link_libraries(yolov5_cls cudart)
-target_link_libraries(yolov5_cls myplugins)
-target_link_libraries(yolov5_cls ${OpenCV_LIBS})
-
-add_executable(yolov5_seg yolov5_seg.cpp ${SRCS})
-target_link_libraries(yolov5_seg nvinfer)
-target_link_libraries(yolov5_seg cudart)
-target_link_libraries(yolov5_seg myplugins)
-target_link_libraries(yolov5_seg ${OpenCV_LIBS})
 
