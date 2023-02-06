@@ -13,7 +13,9 @@
 
 using namespace nvinfer1;
 
-// file comments
+// C++ implementation of Yolov5 modules in models/common.py
+// https://github.com/ultralytics/yolov5/blob/d02ee60512c50d9573bb7a136d8baade8a0bd332/models/common.py#L159
+// Builds all the layers of the detection engine
 
 namespace {
 
@@ -309,6 +311,8 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
                                          input_tensors.size(), *plugin_obj);
   return yolo_layer;
 }
+
+}  // namespace
 
 ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
                                   IBuilderConfig* config, DataType dt,
