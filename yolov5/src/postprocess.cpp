@@ -2,26 +2,28 @@
 
 #include <sstream>
 
-#include "utils.h"
-
-cv::Rect get_rect(cv::Mat& img, float bbox[4]) {
+cv::Rect get_rect(cv::Mat& img, float bounding_box[4]) {
   float l, r, t, b;
   float r_w = kInputW / (img.cols * 1.0);
   float r_h = kInputH / (img.rows * 1.0);
   if (r_h > r_w) {
-    l = bbox[0] - bbox[2] / 2.f;
-    r = bbox[0] + bbox[2] / 2.f;
-    t = bbox[1] - bbox[3] / 2.f - (kInputH - r_w * img.rows) / 2;
-    b = bbox[1] + bbox[3] / 2.f - (kInputH - r_w * img.rows) / 2;
+    l = bounding_box[0] - bounding_box[2] / 2.f;
+    r = bounding_box[0] + bounding_box[2] / 2.f;
+    t = bounding_box[1] - bounding_box[3] / 2.f -
+        (kInputH - r_w * img.rows) / 2;
+    b = bounding_box[1] + bounding_box[3] / 2.f -
+        (kInputH - r_w * img.rows) / 2;
     l = l / r_w;
     r = r / r_w;
     t = t / r_w;
     b = b / r_w;
   } else {
-    l = bbox[0] - bbox[2] / 2.f - (kInputW - r_h * img.cols) / 2;
-    r = bbox[0] + bbox[2] / 2.f - (kInputW - r_h * img.cols) / 2;
-    t = bbox[1] - bbox[3] / 2.f;
-    b = bbox[1] + bbox[3] / 2.f;
+    l = bounding_box[0] - bounding_box[2] / 2.f -
+        (kInputW - r_h * img.cols) / 2;
+    r = bounding_box[0] + bounding_box[2] / 2.f -
+        (kInputW - r_h * img.cols) / 2;
+    t = bounding_box[1] - bounding_box[3] / 2.f;
+    b = bounding_box[1] + bounding_box[3] / 2.f;
     l = l / r_h;
     r = r / r_h;
     t = t / r_h;
@@ -67,7 +69,7 @@ void nms(std::vector<Detection>& res, float* output, float conf_thresh,
       auto& item = dets[m];
       res.push_back(item);
       for (size_t n = m + 1; n < dets.size(); ++n) {
-        if (iou(item.bbox, dets[n].bbox) > nms_thresh) {
+        if (iou(item.bounding_box, dets[n].bounding_box) > nms_thresh) {
           dets.erase(dets.begin() + n);
           --n;
         }
@@ -91,7 +93,7 @@ void draw_bbox(std::vector<cv::Mat>& img_batch,
     auto& res = res_batch[i];
     cv::Mat img = img_batch[i];
     for (size_t j = 0; j < res.size(); j++) {
-      cv::Rect r = get_rect(img, res[j].bbox);
+      cv::Rect r = get_rect(img, res[j].bounding_box);
       cv::rectangle(img, r, cv::Scalar(0x27, 0xC1, 0x36), 2);
       cv::putText(img, std::to_string((int)res[j].class_id),
                   cv::Point(r.x, r.y - 1), cv::FONT_HERSHEY_PLAIN, 1.2,
@@ -100,11 +102,11 @@ void draw_bbox(std::vector<cv::Mat>& img_batch,
   }
 }
 
-static cv::Rect get_downscale_rect(float bbox[4], float scale) {
-  float left = bbox[0] - bbox[2] / 2;
-  float top = bbox[1] - bbox[3] / 2;
-  float right = bbox[0] + bbox[2] / 2;
-  float bottom = bbox[1] + bbox[3] / 2;
+static cv::Rect get_downscale_rect(float bounding_box[4], float scale) {
+  float left = bounding_box[0] - bounding_box[2] / 2;
+  float top = bounding_box[1] - bounding_box[3] / 2;
+  float right = bounding_box[0] + bounding_box[2] / 2;
+  float bottom = bounding_box[1] + bounding_box[3] / 2;
   left /= scale;
   top /= scale;
   right /= scale;
@@ -118,7 +120,7 @@ std::vector<cv::Mat> process_mask(const float* proto, int proto_size,
   std::vector<cv::Mat> masks;
   for (size_t i = 0; i < dets.size(); i++) {
     cv::Mat mask_mat = cv::Mat::zeros(kInputH / 4, kInputW / 4, CV_32FC1);
-    auto r = get_downscale_rect(dets[i].bbox, 4);
+    auto r = get_downscale_rect(dets[i].bounding_box, 4);
     for (int x = r.x; x < r.x + r.width; x++) {
       for (int y = r.y; y < r.y + r.height; y++) {
         float e = 0.0f;
@@ -179,7 +181,7 @@ void draw_mask_bbox(cv::Mat& img, std::vector<Detection>& dets,
     auto color = colors[(int)dets[i].class_id % colors.size()];
     auto bgr = cv::Scalar(color & 0xFF, color >> 8 & 0xFF, color >> 16 & 0xFF);
 
-    cv::Rect r = get_rect(img, dets[i].bbox);
+    cv::Rect r = get_rect(img, dets[i].bounding_box);
     for (int x = r.x; x < r.x + r.width; x++) {
       for (int y = r.y; y < r.y + r.height; y++) {
         float val = img_mask.at<float>(y, x);
