@@ -7,7 +7,6 @@
 #include <iostream>
 #include <map>
 
-#include "calibrator.h"
 #include "config.h"
 #include "yololayer.h"
 
