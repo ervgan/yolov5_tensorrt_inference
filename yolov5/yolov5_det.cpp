@@ -1,13 +1,18 @@
+#include <dirent.h>
+
 #include <chrono>
 #include <cmath>
+#include <cstring>
+#include <fstream>
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "cuda_utils.h"
 #include "logging.h"
 #include "model.h"
 #include "postprocess.h"
 #include "preprocess.h"
-#include "utils.h"
 
 using namespace nvinfer1;
 
@@ -136,6 +141,25 @@ void deserialize_engine(std::string& engine_name, IRuntime** runtime,
   *context = (*engine)->createExecutionContext();
   assert(*context);
   delete[] serialized_engine;
+}
+
+int read_files_in_dir(const char* directory_name,
+                      std::vector<std::string>& file_names) {
+  DIR* directory = opendir(directory_name);
+  if (directory == nullptr) {
+    return -1;
+  }
+
+  struct dirent* file = nullptr;
+  while ((file = readdir(directory)) != nullptr) {
+    if (strcmp(file->d_name, ".") != 0 && strcmp(file->d_name, "..") != 0) {
+      std::string cur_file_name(file->d_name);
+      file_names.push_back(cur_file_name);
+    }
+  }
+
+  closedir(directory);
+  return 0;
 }
 
 int main(int argc, char** argv) {
