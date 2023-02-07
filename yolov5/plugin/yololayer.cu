@@ -34,7 +34,7 @@ YoloLayerPlugin::YoloLayerPlugin(int class_count, int neural_net_width,
 
   CUDA_CHECK(cudaMallocHost(&anchor_, kernel_count_ * sizeof(void*)));
   size_t anchor_len = sizeof(float) * kNumAnchor * 2;
-  for (int i = 0; i < mKernelCount; i++) {
+  for (int i = 0; i < kernel_count_; i++) {
     CUDA_CHECK(cudaMalloc(&anchor_[i], anchor_len));
     const auto& yolo = yolo_kernel_[i];
     CUDA_CHECK(cudaMemcpy(anchor_[i], yolo.anchors, anchor_len,
@@ -53,7 +53,7 @@ YoloLayerPlugin::~YoloLayerPlugin() {
 YoloLayerPlugin::YoloLayerPlugin(const void* data, size_t length) {
   using namespace Tn;
   const char *buffer = reinterpret_cast<const char*>(data),
-             *buffer_initial_pointer = buffer;
+             *buffer_start_pointer = buffer;
   read(buffer, class_count_);
   read(buffer, thread_count_);
   read(buffer, kernel_count_);
@@ -73,24 +73,25 @@ YoloLayerPlugin::YoloLayerPlugin(const void* data, size_t length) {
     CUDA_CHECK(cudaMemcpy(anchor_[i], yolo.anchors, anchor_len,
                           cudaMemcpyHostToDevice));
   }
-  assert(buffer == buffer_initial_pointer + length);
+  assert(buffer == buffer_start_pointer + length);
 }
 
 void YoloLayerPlugin::serialize(void* buffer) const TRT_NOEXCEPT {
   using namespace Tn;
-  char *buffer = static_cast<char*>(buffer), *buffer_initial_pointer = buffer;
-  write(buffer, class_count_);
-  write(buffer, thread_count_);
-  write(buffer, kernel_count_);
-  write(buffer, yolov5_net_width_);
-  write(buffer, yolov5_net_height_);
-  write(buffer, max_output_object_);
-  write(buffer, is_segmentation_);
+  char *buffer_1 = static_cast<char*>(buffer),
+       *buffer_1_start_pointer = buffer_1;
+  write(buffer_1, class_count_);
+  write(buffer_1, thread_count_);
+  write(buffer_1, kernel_count_);
+  write(buffer_1, yolov5_net_width_);
+  write(buffer_1, yolov5_net_height_);
+  write(buffer_1, max_output_object_);
+  write(buffer_1, is_segmentation_);
   auto kernel_size = kernel_count_ * sizeof(YoloKernel);
-  memcpy(buffer, yolo_kernel_.data(), kernel_size);
-  buffer += kernel_size;
+  memcpy(buffer_1, yolo_kernel_.data(), kernel_size);
+  buffer_1 += kernel_size;
 
-  assert(buffer == buffer_initial_pointer + getSerializationSize());
+  assert(buffer_1 == buffer_1_start_pointer + getSerializationSize());
 }
 
 size_t YoloLayerPlugin::getSerializationSize() const TRT_NOEXCEPT {
@@ -286,7 +287,7 @@ void YoloLayerPlugin::ForwardGpu(const float* const* inputs, float* output,
 int YoloLayerPlugin::enqueue(int batch_size, const void* const* inputs,
                              void* TRT_CONST_ENQUEUE* outputs, void* workspace,
                              cudaStream_t stream) TRT_NOEXCEPT {
-  forwardGpu((const float* const*)inputs, (float*)outputs[0], stream,
+  ForwardGpu((const float* const*)inputs, (float*)outputs[0], stream,
              batch_size);
   return 0;
 }
