@@ -191,64 +191,74 @@ __global__ void CallDetection(const float* input, float* output,
                               int yolo_height,
                               const float anchors[kNumAnchor * 2], int classes,
                               int output_element, bool is_segmentation) {
-  int id_x = threadIdx.x + blockDim.x * blockIdx.x;
-  if (id_x >= nb_elements) return;
+  // cuda specific parameters to get a unique thread id
+  // threadIdx.x represents the thread id within a block
+  // blockDim.x represents the number of threads in a block
+  // blockIdx.x represents the block id within a grid
+  int thread_id = threadIdx.x + blockDim.x * blockIdx.x;
+  if (thread_id >= nb_elements) return;
 
   int total_grid = yolo_width * yolo_height;
-  int batch_normalization_id_x = id_x / total_grid;
-  id_x = id_x - total_grid * batch_normalization_id_x;
+  int batch_normalization_thread_id = thread_id / total_grid;
+  thread_id = thread_id - total_grid * batch_normalization_thread_id;
   int info_len_i = 5 + classes;
   if (is_segmentation) info_len_i += 32;
   const float* current_input =
-      input + batch_normalization_id_x * (info_len_i * total_grid * kNumAnchor);
+      input +
+      batch_normalization_thread_id * (info_len_i * total_grid * kNumAnchor);
 
   for (int k = 0; k < kNumAnchor; ++k) {
-    float box_prob = LogisticFunction(
-        current_input[id_x + k * info_len_i * total_grid + 4 * total_grid]);
+    float box_prob =
+        LogisticFunction(current_input[thread_id + k * info_len_i * total_grid +
+                                       4 * total_grid]);
     if (box_prob < kIgnoreThresh) continue;
     int class_id = 0;
     float max_cls_prob = 0.0;
     for (int i = 5; i < 5 + classes; ++i) {
       float prob = LogisticFunction(
-          current_input[id_x + k * info_len_i * total_grid + i * total_grid]);
+          current_input[thread_id + k * info_len_i * total_grid +
+                        i * total_grid]);
       if (prob > max_cls_prob) {
         max_cls_prob = prob;
         class_id = i - 5;
       }
     }
-    float* result_count = output + batch_normalization_id_x * output_element;
+    float* result_count =
+        output + batch_normalization_thread_id * output_element;
+    // atomic add is a cuda specific method allowing for value addition
+    // in a thread safe manner without race conditions
     int count = (int)atomicAdd(result_count, 1);
     if (count >= max_output_object) return;
     char* data =
         (char*)result_count + sizeof(float) + count * sizeof(Detection);
     Detection* detection = (Detection*)(data);
 
-    int row = id_x / yolo_width;
-    int col = id_x % yolo_width;
+    int row = thread_id / yolo_width;
+    int col = thread_id % yolo_width;
 
     detection->bounding_box[0] =
         (col - 0.5f +
-         2.0f *
-             LogisticFunction(current_input[id_x + k * info_len_i * total_grid +
-                                            0 * total_grid])) *
+         2.0f * LogisticFunction(
+                    current_input[thread_id + k * info_len_i * total_grid +
+                                  0 * total_grid])) *
         neural_net_width / yolo_width;
     detection->bounding_box[1] =
         (row - 0.5f +
-         2.0f *
-             LogisticFunction(current_input[id_x + k * info_len_i * total_grid +
-                                            1 * total_grid])) *
+         2.0f * LogisticFunction(
+                    current_input[thread_id + k * info_len_i * total_grid +
+                                  1 * total_grid])) *
         neural_net_height / yolo_height;
 
     detection->bounding_box[2] =
         2.0f *
-        LogisticFunction(
-            current_input[id_x + k * info_len_i * total_grid + 2 * total_grid]);
+        LogisticFunction(current_input[thread_id + k * info_len_i * total_grid +
+                                       2 * total_grid]);
     detection->bounding_box[2] = detection->bounding_box[2] *
                                  detection->bounding_box[2] * anchors[2 * k];
     detection->bounding_box[3] =
         2.0f *
-        LogisticFunction(
-            current_input[id_x + k * info_len_i * total_grid + 3 * total_grid]);
+        LogisticFunction(current_input[thread_id + k * info_len_i * total_grid +
+                                       3 * total_grid]);
     detection->bounding_box[3] = detection->bounding_box[3] *
                                  detection->bounding_box[3] *
                                  anchors[2 * k + 1];
@@ -256,8 +266,9 @@ __global__ void CallDetection(const float* input, float* output,
     detection->class_id = class_id;
 
     for (int i = 0; is_segmentation && i < 32; i++) {
-      detection->mask[i] = current_input[id_x + k * info_len_i * total_grid +
-                                         (i + 5 + classes) * total_grid];
+      detection->mask[i] =
+          current_input[thread_id + k * info_len_i * total_grid +
+                        (i + 5 + classes) * total_grid];
     }
   }
 }
@@ -266,9 +277,9 @@ void YoloLayerPlugin::ForwardGpu(const float* const* inputs, float* output,
                                  cudaStream_t stream, int batch_size) {
   int output_element =
       1 + max_output_object_ * sizeof(Detection) / sizeof(float);
-  for (int id_x = 0; id_x < batch_size; ++id_x) {
-    CUDA_CHECK(cudaMemsetAsync(output + id_x * output_element, 0, sizeof(float),
-                               stream));
+  for (int i = 0; i < batch_size; ++i) {
+    CUDA_CHECK(
+        cudaMemsetAsync(output + i * output_element, 0, sizeof(float), stream));
   }
   int num_element = 0;
   for (unsigned int i = 0; i < yolo_kernel_.size(); ++i) {
