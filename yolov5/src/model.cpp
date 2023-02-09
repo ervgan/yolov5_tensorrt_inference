@@ -53,17 +53,17 @@ std::map<std::string, Weights> LoadWeights(const std::string file) {
 }
 
 // get nb of output channels
-int getWidth(int width, float width_multiplier) {
+int get_width(int width, float width_multiplier) {
   const int divisor = 8;
   return int(ceil((width * width_multiplier) / divisor)) * divisor;
 }
 
-int getWidth(int width, float width_multiplier, int divisor) {
+int get_width(int width, float width_multiplier, int divisor) {
   return int(ceil((width * width_multiplier) / divisor)) * divisor;
 }
 
 // get number of layers in the network
-int getDepth(int depth, float depth_multiplier) {
+int get_depth(int depth, float depth_multiplier) {
   if (depth == 1) return 1;
   int scaled_depth = round(depth * depth_multiplier);
   if (depth * depth_multiplier - int(depth * depth_multiplier) == 0.5 &&
@@ -329,53 +329,53 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
   // Backbone layers
   auto convo_layer_0 =
       CreateConvoLayer(network, weight_map, *data,
-                       getWidth(64, width_multiplier), 6, 2, 1, "model.0");
+                       get_width(64, width_multiplier), 6, 2, 1, "model.0");
   assert(convo_layer_0);
   auto convo_layer_1 =
       CreateConvoLayer(network, weight_map, *convo_layer_0->getOutput(0),
-                       getWidth(128, width_multiplier), 3, 2, 1, "model.1");
+                       get_width(128, width_multiplier), 3, 2, 1, "model.1");
 
   auto bottleneck_layer_2 = CreateC3Bottleneck(
       network, weight_map, *convo_layer_1->getOutput(0),
-      getWidth(128, width_multiplier), getWidth(128, width_multiplier),
-      getDepth(3, depth_multiplier), true, 1, 0.5, "model.2");
+      get_width(128, width_multiplier), get_width(128, width_multiplier),
+      get_depth(3, depth_multiplier), true, 1, 0.5, "model.2");
 
   auto convo_layer_3 =
       CreateConvoLayer(network, weight_map, *bottleneck_layer_2->getOutput(0),
-                       getWidth(256, width_multiplier), 3, 2, 1, "model.3");
+                       get_width(256, width_multiplier), 3, 2, 1, "model.3");
 
   auto bottleneck_layer_4 = CreateC3Bottleneck(
       network, weight_map, *convo_layer_3->getOutput(0),
-      getWidth(256, width_multiplier), getWidth(256, width_multiplier),
-      getDepth(6, depth_multiplier), true, 1, 0.5, "model.4");
+      get_width(256, width_multiplier), get_width(256, width_multiplier),
+      get_depth(6, depth_multiplier), true, 1, 0.5, "model.4");
 
   auto convo_layer_5 =
       CreateConvoLayer(network, weight_map, *bottleneck_layer_4->getOutput(0),
-                       getWidth(512, width_multiplier), 3, 2, 1, "model.5");
+                       get_width(512, width_multiplier), 3, 2, 1, "model.5");
 
   auto bottleneck_layer_6 = CreateC3Bottleneck(
       network, weight_map, *convo_layer_5->getOutput(0),
-      getWidth(512, width_multiplier), getWidth(512, width_multiplier),
-      getDepth(9, depth_multiplier), true, 1, 0.5, "model.6");
+      get_width(512, width_multiplier), get_width(512, width_multiplier),
+      get_depth(9, depth_multiplier), true, 1, 0.5, "model.6");
 
   auto convo_layer_7 =
       CreateConvoLayer(network, weight_map, *bottleneck_layer_6->getOutput(0),
-                       getWidth(1024, width_multiplier), 3, 2, 1, "model.7");
+                       get_width(1024, width_multiplier), 3, 2, 1, "model.7");
 
   auto bottleneck_layer_8 = CreateC3Bottleneck(
       network, weight_map, *convo_layer_7->getOutput(0),
-      getWidth(1024, width_multiplier), getWidth(1024, width_multiplier),
-      getDepth(3, depth_multiplier), true, 1, 0.5, "model.8");
+      get_width(1024, width_multiplier), get_width(1024, width_multiplier),
+      get_depth(3, depth_multiplier), true, 1, 0.5, "model.8");
 
   auto spp_layer_9 =
       CreateSPPFLayer(network, weight_map, *bottleneck_layer_8->getOutput(0),
-                      getWidth(1024, width_multiplier),
-                      getWidth(1024, width_multiplier), 5, "model.9");
+                      get_width(1024, width_multiplier),
+                      get_width(1024, width_multiplier), 5, "model.9");
 
   // Head layer
   auto convo_layer_10 =
       CreateConvoLayer(network, weight_map, *spp_layer_9->getOutput(0),
-                       getWidth(512, width_multiplier), 1, 1, 1, "model.10");
+                       get_width(512, width_multiplier), 1, 1, 1, "model.10");
 
   // Layer increasing spatial resolution of image
   auto upsample_layer_11 = network->addResize(*convo_layer_10->getOutput(0));
@@ -392,12 +392,12 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 
   auto bottleneck_layer_13 = CreateC3Bottleneck(
       network, weight_map, *concatenation_layer_12->getOutput(0),
-      getWidth(1024, width_multiplier), getWidth(512, width_multiplier),
-      getDepth(3, depth_multiplier), false, 1, 0.5, "model.13");
+      get_width(1024, width_multiplier), get_width(512, width_multiplier),
+      get_depth(3, depth_multiplier), false, 1, 0.5, "model.13");
 
   auto convo_layer_14 =
       CreateConvoLayer(network, weight_map, *bottleneck_layer_13->getOutput(0),
-                       getWidth(256, width_multiplier), 1, 1, 1, "model.14");
+                       get_width(256, width_multiplier), 1, 1, 1, "model.14");
 
   auto upsample_layer_15 = network->addResize(*convo_layer_14->getOutput(0));
   assert(upsample_layer_15);
@@ -412,8 +412,8 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 
   auto bottleneck_layer_17 = CreateC3Bottleneck(
       network, weight_map, *concatenation_layer_16->getOutput(0),
-      getWidth(512, width_multiplier), getWidth(256, width_multiplier),
-      getDepth(3, depth_multiplier), false, 1, 0.5, "model.17");
+      get_width(512, width_multiplier), get_width(256, width_multiplier),
+      get_depth(3, depth_multiplier), false, 1, 0.5, "model.17");
 
   // Detect
   IConvolutionLayer* det0 = network->addConvolutionNd(
@@ -422,7 +422,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 
   auto convo_layer_18 =
       CreateConvoLayer(network, weight_map, *bottleneck_layer_17->getOutput(0),
-                       getWidth(256, width_multiplier), 3, 2, 1, "model.18");
+                       get_width(256, width_multiplier), 3, 2, 1, "model.18");
 
   ITensor* input_tensors_layer_19[] = {convo_layer_18->getOutput(0),
                                        convo_layer_14->getOutput(0)};
@@ -430,8 +430,8 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 
   auto bottleneck_layer_20 = CreateC3Bottleneck(
       network, weight_map, *cat19->getOutput(0),
-      getWidth(512, width_multiplier), getWidth(512, width_multiplier),
-      getDepth(3, depth_multiplier), false, 1, 0.5, "model.20");
+      get_width(512, width_multiplier), get_width(512, width_multiplier),
+      get_depth(3, depth_multiplier), false, 1, 0.5, "model.20");
 
   IConvolutionLayer* det1 = network->addConvolutionNd(
       *bottleneck_layer_20->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
@@ -439,7 +439,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 
   auto convo_layer_21 =
       CreateConvoLayer(network, weight_map, *bottleneck_layer_20->getOutput(0),
-                       getWidth(512, width_multiplier), 3, 2, 1, "model.21");
+                       get_width(512, width_multiplier), 3, 2, 1, "model.21");
 
   ITensor* input_tensors_layer_22[] = {convo_layer_21->getOutput(0),
                                        convo_layer_10->getOutput(0)};
@@ -449,8 +449,8 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 
   auto bottleneck_layer_23 = CreateC3Bottleneck(
       network, weight_map, *concatenation_layer_22->getOutput(0),
-      getWidth(1024, width_multiplier), getWidth(1024, width_multiplier),
-      getDepth(3, depth_multiplier), false, 1, 0.5, "model.23");
+      get_width(1024, width_multiplier), get_width(1024, width_multiplier),
+      get_depth(3, depth_multiplier), false, 1, 0.5, "model.23");
 
   IConvolutionLayer* det2 = network->addConvolutionNd(
       *bottleneck_layer_23->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
