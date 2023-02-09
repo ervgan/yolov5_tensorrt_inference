@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
   CUDA_CHECK(cudaStreamCreate(&stream));
 
   // Init CUDA preprocessing
-  cuda_preprocess_init(kMaxInputImageSize);
+  CudaPreprocessInit(kMaxInputImageSize);
 
   // Prepare cpu and gpu buffers
   float* gpu_buffers[2];
@@ -222,7 +222,7 @@ int main(int argc, char** argv) {
     }
 
     // Preprocess
-    cuda_batch_preprocess(img_batch, gpu_buffers[0], kInputW, kInputH, stream);
+    CudaPreprocessBatch(img_batch, gpu_buffers[0], kInputW, kInputH, stream);
 
     // Run inference
     auto start = std::chrono::system_clock::now();
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
   CUDA_CHECK(cudaFree(gpu_buffers[0]));
   CUDA_CHECK(cudaFree(gpu_buffers[1]));
   delete[] cpu_output_buffer;
-  cuda_preprocess_destroy();
+  CudaPreprocessDestroy();
   // Destroy the engine
   context->destroy();
   engine->destroy();

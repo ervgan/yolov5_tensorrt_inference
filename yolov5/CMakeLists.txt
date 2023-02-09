@@ -17,11 +17,10 @@ enable_language(CUDA)
 include_directories(/usr/local/cuda/include)
 link_directories(/usr/local/cuda/lib64)
 # tensorrt
-# TODO(Call for PR): make TRT path configurable from command line
 include_directories(/home/nvidia/TensorRT-8.2.5.1/include/)
 link_directories(/home/nvidia/TensorRT-8.2.5.1/lib/)
 
-include_directories(${PROJECT_SOURCE_DIR}/src/)
+include_directories(${PROJECT_SOURCE_DIR}/include/)
 include_directories(${PROJECT_SOURCE_DIR}/plugin/)
 file(GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.cu)
 file(GLOB_RECURSE PLUGIN_SRCS ${PROJECT_SOURCE_DIR}/plugin/*.cu)
