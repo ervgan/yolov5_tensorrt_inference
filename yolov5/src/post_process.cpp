@@ -29,7 +29,7 @@ float intersection_over_union(float first_box[4], float second_box[4]) {
 
 bool compare(const Detection& first_detection,
              const Detection& second_detection) {
-  return first_detection.conf > second_detection.conf;
+  return first_detection.confidence > second_detection.confidence;
 }
 
 cv::Rect ScaleRectangle(float bounding_box[4], float scale) {
@@ -143,8 +143,8 @@ void DrawBox(std::vector<cv::Mat>& image_batch,
       cv::Rect rectangle = CreateRectangle(image, result[j].bounding_box);
       cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
       cv::putText(image, std::to_string((int)result[j].class_id),
-                  cv::Point(r.x, r.y - 1), cv::FONT_HERSHEY_PLAIN, 1.2,
-                  cv::Scalar(0xFF, 0xFF, 0xFF), 2);
+                  cv::Point(rectangle.x, rectangle.y - 1),
+                  cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
     }
   }
 }
