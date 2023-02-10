@@ -1,9 +1,11 @@
-#include <cassert>
 #include <iostream>
 #include <vector>
 
 #include "cuda_utils.h"
-#include "yololayer.h"
+#include "yolo_layer.h"
+
+// Implements a TensorRT plugin
+// to customize according to the yolo specifications
 
 namespace Tn {
 template <typename T>
@@ -73,7 +75,7 @@ YoloLayerPlugin::YoloLayerPlugin(const void* data, size_t length) {
     CUDA_CHECK(cudaMemcpy(anchor_[i], yolo.anchors, anchor_len,
                           cudaMemcpyHostToDevice));
   }
-  assert(buffer == buffer_start_pointer + length);
+  CHECK_EQ(buffer, buffer_start_pointer + length);
 }
 
 void YoloLayerPlugin::serialize(void* buffer) const TRT_NOEXCEPT {
@@ -91,7 +93,7 @@ void YoloLayerPlugin::serialize(void* buffer) const TRT_NOEXCEPT {
   memcpy(buffer_1, yolo_kernel_.data(), kernel_size);
   buffer_1 += kernel_size;
 
-  assert(buffer_1 == buffer_1_start_pointer + getSerializationSize());
+  CHECK_EQ(buffer_1, buffer_1_start_pointer + getSerializationSize());
 }
 
 size_t YoloLayerPlugin::getSerializationSize() const TRT_NOEXCEPT {
@@ -326,9 +328,9 @@ const PluginFieldCollection* YoloPluginCreator::getFieldNames() TRT_NOEXCEPT {
 
 IPluginV2IOExt* YoloPluginCreator::createPlugin(
     const char* name, const PluginFieldCollection* plugin_fields) TRT_NOEXCEPT {
-  assert(plugin_fields->nbFields == 2);
-  assert(strcmp(plugin_fields->fields[0].name, "netinfo") == 0);
-  assert(strcmp(plugin_fields->fields[1].name, "kernels") == 0);
+  CHECK_EQ(plugin_fields->nbFields, 2);
+  CHECK_EQ(strcmp(plugin_fields->fields[0].name, "netinfo"), 0);
+  CHECK_EQ(strcmp(plugin_fields->fields[1].name, "kernels"), 0);
   int* neural_net_info = (int*)(plugin_fields->fields[0].data);
   int class_count = neural_net_info[0];
   int input_width = neural_net_info[1];

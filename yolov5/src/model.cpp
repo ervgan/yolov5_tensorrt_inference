@@ -1,6 +1,5 @@
 #include "model.h"
 
-#include <cassert>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -8,7 +7,7 @@
 #include <map>
 
 #include "config.h"
-#include "yololayer.h"
+#include "yolo_layer.h"
 
 using namespace nvinfer1;
 
@@ -25,12 +24,12 @@ std::map<std::string, Weights> LoadWeights(const std::string file) {
   std::cout << "Loading weights: " << file << std::endl;
   std::map<std::string, Weights> weight_map;
   std::ifstream input(file);
-  assert(input.is_open() &&
-         "Unable to load weight file. please check if the .wts file path");
+  CHECK(input.is_open() &&
+        "Unable to load weight file. please check if the .wts file path");
   // Read number of weight blobs
   int32_t count;
   input >> count;
-  assert(count > 0 && "Invalid weight map file.");
+  CHECK(count > 0 && "Invalid weight map file.");
   // get weights for each
   while (count--) {
     Weights weight{DataType::kFLOAT, nullptr, 0};
@@ -109,7 +108,7 @@ IScaleLayer* AddBatchNorm2D(INetworkDefinition* network,
 
   IScaleLayer* scale_layer =
       network->addScale(input, ScaleMode::kCHANNEL, shift, scale, power);
-  assert(scale_layer);
+  CHECK_NOTNULL(scale_layer);
   return scale_layer;
 }
 
@@ -125,7 +124,7 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
       input, output, DimsHW{kernel_size, kernel_size},
       weight_map[layer_name + ".conv.weight"], empty_wts);
 
-  assert(convo_layer);
+  CHECK_NOTNULL(convo_layer);
 
   convo_layer->setStrideNd(DimsHW{stride, stride});
   convo_layer->setPaddingNd(DimsHW{kPadding, kPadding});
@@ -138,11 +137,11 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
   // using silu activation method = input * sigmoid
   auto sigmoid_activation = network->addActivation(
       *batch_norm_layer->getOutput(0), ActivationType::kSIGMOID);
-  assert(sigmoid_activation);
+  CHECK_NOTNULL(sigmoid_activation);
   auto silu_activation = network->addElementWise(
       *batch_norm_layer->getOutput(0), *sigmoid_activation->getOutput(0),
       ElementWiseOperation::kPROD);
-  assert(silu_activation);
+  CHECK_NOTNULL(silu_activation);
   return silu_activation;
 }
 
@@ -280,8 +279,8 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
   plugin_fields[0].type = PluginFieldType::kFLOAT32;
 
   // load strides from Detect layer
-  assert(weight_map.find(layer_name + ".strides") != weight_map.end() &&
-         "Not found `strides`, please check wts_converter.py!!!");
+  CHECK(weight_map.find(layer_name + ".strides") != weight_map.end() &&
+        "Not found `strides`, please check wts_converter.py!!!");
   Weights strides = weight_map[layer_name + ".strides"];
   auto* p = (const float*)(strides.values);
   std::vector<int> scales(p, p + strides.count);
@@ -323,14 +322,14 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
   // Create input tensor of shape {3, kInputH, kInputW}
   ITensor* data =
       network->addInput(kInputTensorName, dt, Dims3{3, kInputH, kInputW});
-  assert(data);
+  CHECK_NOTNULL(data);
   std::map<std::string, Weights> weight_map = LoadWeights(wts_file_name);
 
   // Backbone layers
   auto convo_layer_0 =
       CreateConvoLayer(network, weight_map, *data,
                        get_width(64, width_multiplier), 6, 2, 1, "model.0");
-  assert(convo_layer_0);
+  CHECK_NOTNULL(convo_layer_0);
   auto convo_layer_1 =
       CreateConvoLayer(network, weight_map, *convo_layer_0->getOutput(0),
                        get_width(128, width_multiplier), 3, 2, 1, "model.1");
@@ -379,7 +378,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 
   // Layer increasing spatial resolution of image
   auto upsample_layer_11 = network->addResize(*convo_layer_10->getOutput(0));
-  assert(upsample_layer_11);
+  CHECK_NOTNULL(upsample_layer_11);
   upsample_layer_11->setResizeMode(ResizeMode::kNEAREST);
   upsample_layer_11->setOutputDimensions(
       bottleneck_layer_6->getOutput(0)->getDimensions());
@@ -400,7 +399,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
                        get_width(256, width_multiplier), 1, 1, 1, "model.14");
 
   auto upsample_layer_15 = network->addResize(*convo_layer_14->getOutput(0));
-  assert(upsample_layer_15);
+  CHECK_NOTNULL(upsample_layer_15);
   upsample_layer_15->setResizeMode(ResizeMode::kNEAREST);
   upsample_layer_15->setOutputDimensions(
       bottleneck_layer_4->getOutput(0)->getDimensions());

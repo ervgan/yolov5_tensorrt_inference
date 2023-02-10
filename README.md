@@ -1,24 +1,21 @@
 ## Different versions of yolov5
 
-Currently, support for yolov5 v1.0, v2.0, v3.0, v3.1, v4.0, v5.0, v6.0, v6.2, v7.0
+Currently supports yolov5 v1.0, v2.0, v3.0, v3.1, v4.0, v5.0, v6.0, v6.2, v7.0
 
 # TensorRTx
 
-TensorRTx aims to implement popular deep learning networks with TensorRT network definition API.
+Implementation of yolov5 deep learning networks with TensorRT network definition API.
 
-This repo is forked from: https://github.com/wang-xinyu/tensorrtx and is adapted for detection only using Yolov5.
-
-
-The basic workflow of TensorRTx is:
-1. Get the trained models from pytorch, mxnet or tensorflow, etc. Some pytorch models can be found in my repo [pytorchx](https://github.com/wang-xinyu/pytorchx), the remaining are from popular open-source repos.
-2. Export the weights to a plain text file -- [.wts file](./tutorials/getting_started.md#the-wts-content-format).
+The basic workflow to run inference from a pytorch is as follows:
+1. Get the trained models from pytorch.
+2. Export the weights to a plain text file -- [.wts file] using the wts_converter.py file (see below for an example).
 3. Load weights in TensorRT, define the network, build a TensorRT engine.
 4. Load the TensorRT engine and run inference.
 
 ## Config
 
 - Choose the YOLOv5 sub-model n/s/m/l/x from command line arguments.
-- Other configs please check [src/config.h](src/config.h)
+- Other configs please check [include/config.h](include/config.h)
 
 ## Build and Run
 
@@ -55,13 +52,9 @@ make
 ./yolov5_det -d yolov5.engine ../images
 ```
 
-## Acknowledgments & Contact
+## Acknowledgments
 
-Any contributions, questions and discussions are welcomed, contact me by following info.
-
-E-mail: wangxinyu_es@163.com
-
-WeChat ID: wangxinyu0375 (可加我微信进tensorrtx交流群，**备注：tensorrtx**)
+For more info, refer to https://github.com/wang-xinyu/tensorrtx
 
 
 
