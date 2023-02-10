@@ -1,4 +1,5 @@
 #include <dirent.h>
+#include <glog/logging.h>
 
 #include <chrono>
 #include <cmath>

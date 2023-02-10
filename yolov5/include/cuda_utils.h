@@ -2,6 +2,7 @@
 #define TRTX_CUDA_UTILS_H_
 
 #include <cuda_runtime_api.h>
+#include <glog/logging.h>
 
 #ifndef CUDA_CHECK
 #define CUDA_CHECK(callstr)                                                 \

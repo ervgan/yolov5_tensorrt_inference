@@ -1,5 +1,7 @@
 #include "model.h"
 
+#include <glog/logging.h>
+
 #include <cmath>
 #include <cstring>
 #include <fstream>

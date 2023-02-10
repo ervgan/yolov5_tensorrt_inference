@@ -1,3 +1,5 @@
+#include <glog/logging.h>
+
 #include "cuda_utils.h"
 #include "pre_process.h"
 

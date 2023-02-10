@@ -17,6 +17,8 @@
 #ifndef TENSORRT_LOGGING_H
 #define TENSORRT_LOGGING_H
 
+#include <glog/logging.h>
+
 #include <ctime>
 #include <iomanip>
 #include <iostream>
