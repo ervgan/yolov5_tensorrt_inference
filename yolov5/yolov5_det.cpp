@@ -20,53 +20,56 @@ static Logger gLogger;
 const static int kOutputSize =
     kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 
-bool parse_args(int argc, char** argv, std::string& wts, std::string& engine,
-                float& gd, float& gw, std::string& img_dir) {
+bool parse_args(int argc, char** argv, std::string& wts_file_name,
+                std::string& engine_file, float& depth_multiple,
+                float& width_multiple, std::string& image_directory) {
   if (argc < 4) return false;
   if (std::string(argv[1]) == "-s" && (argc == 5 || argc == 7)) {
-    wts = std::string(argv[2]);
-    engine = std::string(argv[3]);
+    wts_file_name = std::string(argv[2]);
+    engine_file = std::string(argv[3]);
     auto net = std::string(argv[4]);
+    // the following model's width and depth multiples
+    // are defined in the yolov5.yaml files in the yolo repo
     if (net[0] == 'n') {
-      gd = 0.33;
-      gw = 0.25;
+      depth_multiple = 0.33;
+      width_multiple = 0.25;
     } else if (net[0] == 's') {
-      gd = 0.33;
-      gw = 0.50;
+      depth_multiple = 0.33;
+      width_multiple = 0.50;
     } else if (net[0] == 'm') {
-      gd = 0.67;
-      gw = 0.75;
+      depth_multiple = 0.67;
+      width_multiple = 0.75;
     } else if (net[0] == 'l') {
-      gd = 1.0;
-      gw = 1.0;
+      depth_multiple = 1.0;
+      width_multiple = 1.0;
     } else if (net[0] == 'x') {
-      gd = 1.33;
-      gw = 1.25;
+      depth_multiple = 1.33;
+      width_multiple = 1.25;
     } else if (net[0] == 'c' && argc == 7) {
-      gd = atof(argv[5]);
-      gw = atof(argv[6]);
+      depth_multiple = atof(argv[5]);
+      width_multiple = atof(argv[6]);
     } else {
       return false;
     }
   } else if (std::string(argv[1]) == "-d" && argc == 4) {
-    engine = std::string(argv[2]);
-    img_dir = std::string(argv[3]);
+    engine_file = std::string(argv[2]);
+    image_directory = std::string(argv[3]);
   } else {
     return false;
   }
   return true;
 }
 
-void prepare_buffers(ICudaEngine* engine, float** gpu_input_buffer,
+void prepare_buffers(ICudaEngine* engine_file, float** gpu_input_buffer,
                      float** gpu_output_buffer, float** cpu_output_buffer) {
-  assert(engine->getNbBindings() == 2);
+  assert(engine_file->getNbBindings() == 2);
   // In order to bind the buffers, we need to know the names of the input and
   // output tensors. Note that indices are guaranteed to be less than
   // IEngine::getNbBindings()
-  const int inputIndex = engine->getBindingIndex(kInputTensorName);
-  const int outputIndex = engine->getBindingIndex(kOutputTensorName);
-  assert(inputIndex == 0);
-  assert(outputIndex == 1);
+  const int kInputIndex = engine_file->getBindingIndex(kInputTensorName);
+  const int kOutputIndex = engine_file->getBindingIndex(kOutputTensorName);
+  assert(kInputIndex == 0);
+  assert(kOutputIndex == 1);
   // Create GPU buffers on device
   CUDA_CHECK(cudaMalloc((void**)gpu_input_buffer,
                         kBatchSize * 3 * kInputH * kInputW * sizeof(float)));
@@ -77,32 +80,36 @@ void prepare_buffers(ICudaEngine* engine, float** gpu_input_buffer,
 }
 
 void infer(IExecutionContext& context, cudaStream_t& stream, void** gpu_buffers,
-           float* output, int batchsize) {
-  context.enqueue(batchsize, gpu_buffers, stream, nullptr);
+           float* output, int batch_size) {
+  // Sets execution context for TensorRT
+  context.enqueue(batch_size, gpu_buffers, stream, nullptr);
+  // async memory copy between host and GPU device
   CUDA_CHECK(cudaMemcpyAsync(output, gpu_buffers[1],
-                             batchsize * kOutputSize * sizeof(float),
+                             batch_size * kOutputSize * sizeof(float),
                              cudaMemcpyDeviceToHost, stream));
   cudaStreamSynchronize(stream);
 }
 
-void serialize_engine(unsigned int max_batchsize, float& gd, float& gw,
-                      std::string& wts_name, std::string& engine_name) {
+void serialize_engine(unsigned int max_batchsize, float& depth_multiple,
+                      float& width_multiple, std::string& wts_name,
+                      std::string& engine_name) {
   // Create builder
   IBuilder* builder = createInferBuilder(gLogger);
   IBuilderConfig* config = builder->createBuilderConfig();
 
   // Create model to populate the network, then set the outputs and create an
-  // engine
-  ICudaEngine* engine = nullptr;
-  engine = BuildDetectionEngine(max_batchsize, builder, config,
-                                DataType::kFLOAT, gd, gw, wts_name);
-  assert(engine != nullptr);
+  // engine_file
+  ICudaEngine* engine_file = nullptr;
+  engine_file =
+      BuildDetectionEngine(max_batchsize, builder, config, DataType::kFLOAT,
+                           depth_multiple, width_multiple, wts_name);
+  assert(engine_file != nullptr);
 
-  // Serialize the engine
-  IHostMemory* serialized_engine = engine->serialize();
+  // Serialize the engine_file
+  IHostMemory* serialized_engine = engine_file->serialize();
   assert(serialized_engine != nullptr);
 
-  // Save engine to file
+  // Save engine_file to file
   std::ofstream p(engine_name, std::ios::binary);
   if (!p) {
     std::cerr << "Could not open plan output file" << std::endl;
@@ -112,14 +119,15 @@ void serialize_engine(unsigned int max_batchsize, float& gd, float& gw,
           serialized_engine->size());
 
   // Close everything down
-  engine->destroy();
+  engine_file->destroy();
   builder->destroy();
   config->destroy();
   serialized_engine->destroy();
 }
 
 void deserialize_engine(std::string& engine_name, IRuntime** runtime,
-                        ICudaEngine** engine, IExecutionContext** context) {
+                        ICudaEngine** engine_file,
+                        IExecutionContext** context) {
   std::ifstream file(engine_name, std::ios::binary);
   if (!file.good()) {
     std::cerr << "read " << engine_name << " error!" << std::endl;
@@ -136,9 +144,9 @@ void deserialize_engine(std::string& engine_name, IRuntime** runtime,
 
   *runtime = createInferRuntime(gLogger);
   assert(*runtime);
-  *engine = (*runtime)->deserializeCudaEngine(serialized_engine, size);
-  assert(*engine);
-  *context = (*engine)->createExecutionContext();
+  *engine_file = (*runtime)->deserializeCudaEngine(serialized_engine, size);
+  assert(*engine_file);
+  *context = (*engine_file)->createExecutionContext();
   assert(*context);
   delete[] serialized_engine;
 }
@@ -167,31 +175,35 @@ int main(int argc, char** argv) {
 
   std::string wts_name = "";
   std::string engine_name = "";
-  float gd = 0.0f, gw = 0.0f;
-  std::string img_dir;
+  float depth_multiple = 0.0f, width_multiple = 0.0f;
+  std::string image_directory;
 
-  if (!parse_args(argc, argv, wts_name, engine_name, gd, gw, img_dir)) {
+  if (!parse_args(argc, argv, wts_name, engine_name, depth_multiple,
+                  width_multiple, image_directory)) {
     std::cerr << "arguments not right!" << std::endl;
-    std::cerr << "./yolov5_det -s [.wts] [.engine] [n/s/m/l/x/n6/s6/m6/l6/x6 "
-                 "or c/c6 gd gw]  // serialize model to plan file"
+    std::cerr << "./yolov5_det -s [.wts_file_name] [.engine_file] [n/s/m/l/x "
+                 "or c depth_multiple width_multiple]  // serialize model to "
+                 "plan file"
               << std::endl;
-    std::cerr << "./yolov5_det -d [.engine] ../images  // deserialize plan "
-                 "file and run inference"
-              << std::endl;
+    std::cerr
+        << "./yolov5_det -d [.engine_file] ../images  // deserialize plan "
+           "file and run inference"
+        << std::endl;
     return -1;
   }
 
   // Create a model using the API directly and serialize it to a file
   if (!wts_name.empty()) {
-    serialize_engine(kBatchSize, gd, gw, wts_name, engine_name);
+    serialize_engine(kBatchSize, depth_multiple, width_multiple, wts_name,
+                     engine_name);
     return 0;
   }
 
-  // Deserialize the engine from file
+  // Deserialize the engine_file from file
   IRuntime* runtime = nullptr;
-  ICudaEngine* engine = nullptr;
+  ICudaEngine* engine_file = nullptr;
   IExecutionContext* context = nullptr;
-  deserialize_engine(engine_name, &runtime, &engine, &context);
+  deserialize_engine(engine_name, &runtime, &engine_file, &context);
   cudaStream_t stream;
   CUDA_CHECK(cudaStreamCreate(&stream));
 
@@ -201,11 +213,12 @@ int main(int argc, char** argv) {
   // Prepare cpu and gpu buffers
   float* gpu_buffers[2];
   float* cpu_output_buffer = nullptr;
-  prepare_buffers(engine, &gpu_buffers[0], &gpu_buffers[1], &cpu_output_buffer);
+  prepare_buffers(engine_file, &gpu_buffers[0], &gpu_buffers[1],
+                  &cpu_output_buffer);
 
   // Read images from directory
   std::vector<std::string> file_names;
-  if (read_files_in_dir(img_dir.c_str(), file_names) < 0) {
+  if (read_files_in_dir(image_directory.c_str(), file_names) < 0) {
     std::cerr << "read_files_in_dir failed." << std::endl;
     return -1;
   }
@@ -216,7 +229,7 @@ int main(int argc, char** argv) {
     std::vector<cv::Mat> img_batch;
     std::vector<std::string> img_name_batch;
     for (size_t j = i; j < i + kBatchSize && j < file_names.size(); j++) {
-      cv::Mat img = cv::imread(img_dir + "/" + file_names[j]);
+      cv::Mat img = cv::imread(image_directory + "/" + file_names[j]);
       img_batch.push_back(img);
       img_name_batch.push_back(file_names[j]);
     }
@@ -254,9 +267,9 @@ int main(int argc, char** argv) {
   CUDA_CHECK(cudaFree(gpu_buffers[1]));
   delete[] cpu_output_buffer;
   CudaPreprocessDestroy();
-  // Destroy the engine
+  // Destroy the engine_file
   context->destroy();
-  engine->destroy();
+  engine_file->destroy();
   runtime->destroy();
 
   // Print histogram of the output distribution

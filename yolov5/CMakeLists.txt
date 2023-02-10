@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(yolov5)
 
@@ -8,9 +8,10 @@ option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
 
-# TODO(Call for PR): make cmake compatible with Windows
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 enable_language(CUDA)
+
+find_package (glog 0.6.0 REQUIRED)
 
 # include and link dirs of cuda and tensorrt, you need adapt them if yours are different
 # cuda
@@ -36,5 +37,6 @@ target_link_libraries(yolov5_det nvinfer)
 target_link_libraries(yolov5_det cudart)
 target_link_libraries(yolov5_det myplugins)
 target_link_libraries(yolov5_det ${OpenCV_LIBS})
+target_link_libraries(yolov5_det glog::glog)
 
 
