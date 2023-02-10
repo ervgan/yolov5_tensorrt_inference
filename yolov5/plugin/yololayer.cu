@@ -143,9 +143,10 @@ bool YoloLayerPlugin::canBroadcastInputAcrossBatch(int input_index) const
   return false;
 }
 
-void YoloLayerPlugin::configurePlugin(const PluginTensorDesc* in, int nbInput,
-                                      const PluginTensorDesc* out,
-                                      int nbOutput) TRT_NOEXCEPT {}
+void YoloLayerPlugin::configurePlugin(const PluginTensorDesc* input,
+                                      int nb_input,
+                                      const PluginTensorDesc* output,
+                                      int nb_output) TRT_NOEXCEPT {}
 
 // Attach the plugin object to an execution context and grant the plugin the
 // access to some context resource.
