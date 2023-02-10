@@ -236,8 +236,8 @@ int main(int argc, char** argv) {
 
     // NMS
     std::vector<std::vector<Detection>> res_batch;
-    batch_nms(res_batch, cpu_output_buffer, img_batch.size(), kOutputSize,
-              kConfThresh, kNmsThresh);
+    ApplyBatchNonMaxSuppression(res_batch, cpu_output_buffer, img_batch.size(),
+                                kOutputSize, kConfThresh, kNmsThresh);
 
     // Draw bounding boxes
     DrawBox(img_batch, res_batch);
