@@ -11,8 +11,8 @@
 #include "cuda_utils.h"
 #include "logging.h"
 #include "model.h"
-#include "postprocess.h"
-#include "preprocess.h"
+#include "post_process.h"
+#include "pre_process.h"
 
 using namespace nvinfer1;
 
@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
               kConfThresh, kNmsThresh);
 
     // Draw bounding boxes
-    draw_bbox(img_batch, res_batch);
+    DrawBox(img_batch, res_batch);
 
     // Save images
     for (size_t j = 0; j < img_batch.size(); j++) {

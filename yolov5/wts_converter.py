@@ -5,6 +5,9 @@ import struct
 import torch
 from utils.torch_utils import select_device
 
+# Class to convert a .pt model into a simple text file (.wts)
+# which can then be manipulated to create a custom .engine file
+
 
 class Parser:
     def __init__(self):

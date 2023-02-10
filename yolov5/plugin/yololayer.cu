@@ -262,7 +262,7 @@ __global__ void CallDetection(const float* input, float* output,
     detection->bounding_box[3] = detection->bounding_box[3] *
                                  detection->bounding_box[3] *
                                  anchors[2 * k + 1];
-    detection->conf = box_prob * max_cls_prob;
+    detection->confidence = box_prob * max_cls_prob;
     detection->class_id = class_id;
 
     for (int i = 0; is_segmentation && i < 32; i++) {

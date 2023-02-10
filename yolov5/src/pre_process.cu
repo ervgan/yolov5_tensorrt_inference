@@ -1,5 +1,5 @@
 #include "cuda_utils.h"
-#include "preprocess.h"
+#include "pre_process.h"
 
 static uint8_t* image_buffer_host = nullptr;
 static uint8_t* image_buffer_device = nullptr;
