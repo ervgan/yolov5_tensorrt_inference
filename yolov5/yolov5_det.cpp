@@ -63,15 +63,15 @@ bool ParseArgs(int argc, char** argv, std::string& wts_file,
   return true;
 }
 
-void PrepareMemoryBuffers(ICudaEngine* engine_file, float** gpu_input_buffer,
+void PrepareMemoryBuffers(ICudaEngine* engine, float** gpu_input_buffer,
                           float** gpu_output_buffer,
                           float** cpu_output_buffer) {
-  CHECK_EQ(engine_file->getNbBindings(), 2);
+  CHECK(engine->getNbBindings() == 2);
   // In order to bind the buffers, we need to know the names of the input and
   // output tensors. Note that indices are guaranteed to be less than
   // IEngine::getNbBindings()
-  const int kInputIndex = engine_file->getBindingIndex(kInputTensorName);
-  const int kOutputIndex = engine_file->getBindingIndex(kOutputTensorName);
+  const int kInputIndex = engine->getBindingIndex(kInputTensorName);
+  const int kOutputIndex = engine->getBindingIndex(kOutputTensorName);
   CHECK_EQ(kInputIndex, 0);
   CHECK_EQ(kOutputIndex, 1);
   // Create GPU buffers on device
@@ -266,7 +266,7 @@ int main(int argc, char** argv) {
     // Save images
     // Delete this for deployment
     for (size_t j = 0; j < image_batch.size(); j++) {
-      cv::imwrite("_" + img_name_batch[j], image_batch[j]);
+      cv::imwrite("_" + image_name_batch[j], image_batch[j]);
     }
   }
 

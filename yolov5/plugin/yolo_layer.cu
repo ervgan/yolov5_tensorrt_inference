@@ -1,4 +1,5 @@
-#include <glog>
+#include <glog/logging.h>
+
 #include <iostream>
 #include <vector>
 

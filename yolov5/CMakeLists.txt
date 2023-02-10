@@ -11,7 +11,9 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 enable_language(CUDA)
 
+#include glog
 find_package (glog 0.6.0 REQUIRED)
+include_directories(${GLOG_INCLUDE_DIRS})
 
 # include and link dirs of cuda and tensorrt, you need adapt them if yours are different
 # cuda
