@@ -1,4 +1,3 @@
-import sys
 import argparse
 import os
 import struct
@@ -21,9 +20,9 @@ class Parser:
         self.parser.add_argument(
             "-o", "--output", help="Output (.wts) file path (optional)"
         )
+        self.args = self.parser.parse_args()
 
     def parse(self):
-        self.args = self.parser.parse_args()
         if not os.path.isfile(self.args.weights):
             raise SystemExit("Invalid input file")
         if not self.args.output:
@@ -61,12 +60,12 @@ class WTSConverter:
 
     def write_wts_file(self):
         print(f"Writing into {self.wts_file}")
-        with open(self.wts_file, "w") as file:
-            file.write("{}\n".format(len(self.model.state_dict().keys())))
+        with open(self.wts_file, "w", encoding="utf-8") as file:
+            file.write(f"{len(self.model.state_dict().keys())}\n")
 
             for param, tensor in self.model.state_dict().items():
                 np_array = tensor.reshape(-1).cpu().numpy()
-                file.write("{} {} ".format(param, len(np_array)))
+                file.write(f"{param} {len(np_array)} ")
 
                 for weight in np_array:
                     file.write(" ")
@@ -79,7 +78,7 @@ def main():
     args = parser.parse()
     pt_file, output_file = args
     wts_converter = WTSConverter(pt_file, output_file)
-    print(f"Generating .wts for detection model")
+    print("Generating .wts for detection model")
     wts_converter.load_model()
     wts_converter.write_wts_file()
 
