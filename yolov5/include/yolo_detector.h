@@ -2,9 +2,10 @@
 #include <string>
 #include <vector>
 
-#include "cuda_utils.h"
 #include "model.h"
 #include "types.h"
+
+using namespace nvinfer1;
 
 class YoloDetector {
  public:
@@ -36,7 +37,7 @@ class YoloDetector {
   std::string wts_file_ = "";
   std::string engine_file_ = "";
   float depth_multiple_ = 0.0f;
-  float width_multiple = 0.0f;
+  float width_multiple_ = 0.0f;
   std::string image_directory_;
   IRuntime* runtime_ = nullptr;
   ICudaEngine* engine_ = nullptr;
@@ -47,4 +48,4 @@ class YoloDetector {
   // this will not be needed for live detection
   std::vector<std::string> file_names_;
   std::vector<std::vector<Detection>> result_batch_;
-}
+};

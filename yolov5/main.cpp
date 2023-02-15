@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
   YoloDetector yoloDetector;
   yoloDetector.Init(argc, argv);
   yoloDetector.ProcessImages();
-  yoloDetector.Detect();
+  yoloDetector.DrawDetections();
 
   return 0;
 }

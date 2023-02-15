@@ -212,14 +212,14 @@ void YoloDetector::Init(int argc, char** argv) {
         << "./yolov5_det -d [.engine_file] ../images  // deserialize plan "
            "file and run inference"
         << std::endl;
-    return -1;
+    return;
   }
   // Create a model using the API directly and serialize it to a file
   // Converts .wts file to .engine file
-  if (!wts_file.empty()) {
+  if (!wts_file_.empty()) {
     SerializeEngine(kBatchSize, depth_multiple_, width_multiple_, wts_file_,
                     engine_file_);
-    return 0;
+    return;
   }
   // Deserialize the engine_file from file to enable detection
   DeserializeEngine(engine_file_, &runtime_, &engine_, &context_);
@@ -236,46 +236,47 @@ void YoloDetector::ProcessImages() {
   // This should read one frame at a time for deployment
   if (ReadDirFiles(image_directory_.c_str(), file_names_) < 0) {
     std::cerr << "read_files_in_dir failed." << std::endl;
-    return -1;
+    return;
   }
+}
 
+void YoloDetector::DrawDetections() {
   // store images and image names in vectors
   for (size_t i = 0; i < file_names_.size(); i += kBatchSize) {
     std::vector<cv::Mat> image_batch;
     std::vector<std::string> image_name_batch;
+
     for (size_t j = i; j < i + kBatchSize && j < file_names_.size(); j++) {
       cv::Mat image = cv::imread(image_directory_ + "/" + file_names_[j]);
       image_batch.push_back(image);
-      image_name_batch.push_back(file_names[j]);
+      image_name_batch.push_back(file_names_[j]);
     }
-  }
-  // Preprocess
-  CudaPreprocessBatch(image_batch, gpu_buffers_[0], kInputW, kInputH, stream_);
-}
+    // Preprocess
+    CudaPreprocessBatch(image_batch, gpu_buffers_[0], kInputW, kInputH,
+                        stream_);
+    // Run inference
+    auto start = std::chrono::system_clock::now();
+    RunInference(*context_, stream_, (void**)gpu_buffers_, cpu_output_buffer_,
+                 kBatchSize);
+    auto end = std::chrono::system_clock::now();
+    std::cout << "inference time: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                       start)
+                     .count()
+              << "ms" << std::endl;
 
-void YoloDetector::DrawDetections() {
-  // Run inference
-  auto start = std::chrono::system_clock::now();
-  RunInference(*context_, stream_, (void**)gpu_buffers_, cpu_output_buffer_,
-               kBatchSize);
-  auto end = std::chrono::system_clock::now();
-  std::cout << "inference time: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                     start)
-                   .count()
-            << "ms" << std::endl;
+    // Run Non Maximum Suppresion
+    ApplyBatchNonMaxSuppression(result_batch_, cpu_output_buffer_,
+                                image_batch.size(), kOutputSize, kConfThresh,
+                                kNmsThresh);
 
-  // Run Non Maximum Suppresion
-  ApplyBatchNonMaxSuppression(result_batch_, cpu_output_buffer_,
-                              image_batch_.size(), kOutputSize, kConfThresh,
-                              kNmsThresh);
+    // Draw bounding boxes
+    DrawBox(image_batch, result_batch_);
 
-  // Draw bounding boxes
-  DrawBox(image_batch_, result_batch_);
-
-  // Save images
-  // Delete this for deployment
-  for (size_t j = 0; j < image_batch_.size(); j++) {
-    cv::imwrite("_" + image_name_batch_[j], image_batch_[j]);
+    // Save images
+    // Delete this for deployment
+    for (size_t j = 0; j < image_batch.size(); j++) {
+      cv::imwrite("_" + image_name_batch[j], image_batch[j]);
+    }
   }
 }
