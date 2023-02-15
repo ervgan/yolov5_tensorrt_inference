@@ -35,11 +35,11 @@ target_link_libraries(myplugins nvinfer cudart)
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(yolov5_det yolov5_det.cpp ${SRCS})
-target_link_libraries(yolov5_det nvinfer)
-target_link_libraries(yolov5_det cudart)
-target_link_libraries(yolov5_det myplugins)
-target_link_libraries(yolov5_det ${OpenCV_LIBS})
-target_link_libraries(yolov5_det ${glog_LIBRARIES}
+add_executable(main main.cpp ${SRCS})
+target_link_libraries(main nvinfer)
+target_link_libraries(main cudart)
+target_link_libraries(main myplugins)
+target_link_libraries(main ${OpenCV_LIBS})
+target_link_libraries(main ${glog_LIBRARIES}
 
 

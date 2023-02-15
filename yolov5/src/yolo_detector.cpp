@@ -1,3 +1,5 @@
+#include "yolo_detector.h"
+
 #include <dirent.h>
 #include <glog/logging.h>
 
@@ -17,11 +19,11 @@
 
 using namespace nvinfer1;
 
-namespace {
-
 Logger tensorrt_logger;
 const int kOutputSize =
     kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
+
+namespace {
 
 bool ParseArgs(int argc, char** argv, std::string& wts_file,
                std::string& engine_file, float& depth_multiple,
@@ -63,9 +65,47 @@ bool ParseArgs(int argc, char** argv, std::string& wts_file,
   return true;
 }
 
-void PrepareMemoryBuffers(ICudaEngine* engine, float** gpu_input_buffer,
-                          float** gpu_output_buffer,
-                          float** cpu_output_buffer) {
+int ReadDirFiles(const char* directory_name,
+                 std::vector<std::string>& file_names) {
+  DIR* directory = opendir(directory_name);
+  if (directory == nullptr) {
+    return -1;
+  }
+
+  struct dirent* file = nullptr;
+  while ((file = readdir(directory)) != nullptr) {
+    if (strcmp(file->d_name, ".") != 0 && strcmp(file->d_name, "..") != 0) {
+      std::string cur_file_name(file->d_name);
+      file_names.push_back(cur_file_name);
+    }
+  }
+
+  closedir(directory);
+  return 0;
+}
+
+}  // namespace
+
+YoloDetector::YoloDetector() {}
+
+YoloDetector::~YoloDetector() {
+  cudaStreamDestroy(stream_);
+  CUDA_CHECK(cudaFree(gpu_buffers_[0]));
+  CUDA_CHECK(cudaFree(gpu_buffers_[1]));
+  delete[] cpu_output_buffer_;
+  delete[] file_names_;
+  delete[] result_batch_;
+  CudaPreprocessDestroy();
+  // Destroy the engine
+  context_->destroy();
+  engine_->destroy();
+  runtime_->destroy();
+};
+
+void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
+                                        float** gpu_input_buffer,
+                                        float** gpu_output_buffer,
+                                        float** cpu_output_buffer) {
   CHECK(engine->getNbBindings() == 2);
   // In order to bind the buffers, we need to know the names of the input and
   // output tensors. Note that indices are guaranteed to be less than
@@ -83,8 +123,9 @@ void PrepareMemoryBuffers(ICudaEngine* engine, float** gpu_input_buffer,
   *cpu_output_buffer = new float[kBatchSize * kOutputSize];
 }
 
-void RunInference(IExecutionContext& context, cudaStream_t& stream,
-                  void** gpu_buffers, float* output, int batch_size) {
+void YoloDetector::RunInference(IExecutionContext& context,
+                                cudaStream_t& stream, void** gpu_buffers,
+                                float* output, int batch_size) {
   // Sets execution context for TensorRT
   context.enqueue(batch_size, gpu_buffers, stream, nullptr);
   // async memory copy between host and GPU device
@@ -94,9 +135,10 @@ void RunInference(IExecutionContext& context, cudaStream_t& stream,
   cudaStreamSynchronize(stream);
 }
 
-void SerializeEngine(unsigned int max_batch_size, float& depth_multiple,
-                     float& width_multiple, std::string& wts_file,
-                     std::string& engine_file) {
+void YoloDetector::SerializeEngine(unsigned int max_batch_size,
+                                   float& depth_multiple, float& width_multiple,
+                                   std::string& wts_file,
+                                   std::string& engine_file) {
   // Create builder
   IBuilder* builder = createInferBuilder(tensorrt_logger);
   IBuilderConfig* config = builder->createBuilderConfig();
@@ -130,8 +172,9 @@ void SerializeEngine(unsigned int max_batch_size, float& depth_multiple,
   serialized_engine->destroy();
 }
 
-void DeserializeEngine(std::string& engine_file, IRuntime** runtime,
-                       ICudaEngine** engine, IExecutionContext** context) {
+void YoloDetector::DeserializeEngine(std::string& engine_file,
+                                     IRuntime** runtime, ICudaEngine** engine,
+                                     IExecutionContext** context) {
   std::ifstream file(engine_file, std::ios::binary);
   if (!file.good()) {
     std::cerr << "read " << engine_file << " error!" << std::endl;
@@ -155,37 +198,10 @@ void DeserializeEngine(std::string& engine_file, IRuntime** runtime,
   delete[] serialized_engine;
 }
 
-int ReadDirFiles(const char* directory_name,
-                 std::vector<std::string>& file_names) {
-  DIR* directory = opendir(directory_name);
-  if (directory == nullptr) {
-    return -1;
-  }
-
-  struct dirent* file = nullptr;
-  while ((file = readdir(directory)) != nullptr) {
-    if (strcmp(file->d_name, ".") != 0 && strcmp(file->d_name, "..") != 0) {
-      std::string cur_file_name(file->d_name);
-      file_names.push_back(cur_file_name);
-    }
-  }
-
-  closedir(directory);
-  return 0;
-}
-
-}  // namespace
-
-int main(int argc, char** argv) {
-  cudaSetDevice(kGpuId);
-
-  std::string wts_file = "";
-  std::string engine_file = "";
-  float depth_multiple = 0.0f, width_multiple = 0.0f;
-  std::string image_directory;
-
-  if (!ParseArgs(argc, argv, wts_file, engine_file, depth_multiple,
-                 width_multiple, image_directory)) {
+void YoloDetector::Init(int argc, char** argv) {
+  // sets parameters
+  if (!ParseArgs(argc, argv, wts_file_, engine_file_, depth_multiple_,
+                 width_multiple_, image_directory_)) {
     std::cerr << "arguments not right!" << std::endl;
     std::cerr << "./yolov5_det -s [.wts_file] [.engine_file] [n/s/m/l/x "
                  "or c depth_multiple width_multiple]  // serialize model to "
@@ -197,89 +213,68 @@ int main(int argc, char** argv) {
         << std::endl;
     return -1;
   }
-
   // Create a model using the API directly and serialize it to a file
+  // Converts .wts file to .engine file
   if (!wts_file.empty()) {
-    SerializeEngine(kBatchSize, depth_multiple, width_multiple, wts_file,
-                    engine_file);
+    SerializeEngine(kBatchSize, depth_multiple_, width_multiple_, wts_file_,
+                    engine_file_);
     return 0;
   }
-
-  // Deserialize the engine_file from file
-  IRuntime* runtime = nullptr;
-  ICudaEngine* engine = nullptr;
-  IExecutionContext* context = nullptr;
-  DeserializeEngine(engine_file, &runtime, &engine, &context);
-  cudaStream_t stream;
-  CUDA_CHECK(cudaStreamCreate(&stream));
-
+  // Deserialize the engine_file from file to enable detection
+  DeserializeEngine(engine_file_, &runtime_, &engine_, &context_);
+  CUDA_CHECK(cudaStreamCreate(&stream_));
   // Init cuda preprocessing
   CudaPreprocessInit(kMaxInputImageSize);
-
   // Prepare cpu and gpu buffers
-  float* gpu_buffers[2];
-  float* cpu_output_buffer = nullptr;
-  PrepareMemoryBuffers(engine, &gpu_buffers[0], &gpu_buffers[1],
-                       &cpu_output_buffer);
+  PrepareMemoryBuffers(engine_, &gpu_buffers_[0], &gpu_buffers_[1],
+                       &cpu_output_buffer_);
+}
 
+void YoloDetector::ProcessImages() {
   // Read images from directory
   // This should read one frame at a time for deployment
-  std::vector<std::string> file_names;
-  if (ReadDirFiles(image_directory.c_str(), file_names) < 0) {
+  if (ReadDirFiles(image_directory_.c_str(), file_names_) < 0) {
     std::cerr << "read_files_in_dir failed." << std::endl;
     return -1;
   }
 
-  // batch predict
-  for (size_t i = 0; i < file_names.size(); i += kBatchSize) {
+  // store images and image names in vectors
+  for (size_t i = 0; i < file_names_.size(); i += kBatchSize) {
     std::vector<cv::Mat> image_batch;
     std::vector<std::string> image_name_batch;
-    for (size_t j = i; j < i + kBatchSize && j < file_names.size(); j++) {
-      cv::Mat image = cv::imread(image_directory + "/" + file_names[j]);
+    for (size_t j = i; j < i + kBatchSize && j < file_names_.size(); j++) {
+      cv::Mat image = cv::imread(image_directory_ + "/" + file_names_[j]);
       image_batch.push_back(image);
       image_name_batch.push_back(file_names[j]);
     }
-
-    // Preprocess
-    CudaPreprocessBatch(image_batch, gpu_buffers[0], kInputW, kInputH, stream);
-
-    // Run inference
-    auto start = std::chrono::system_clock::now();
-    RunInference(*context, stream, (void**)gpu_buffers, cpu_output_buffer,
-                 kBatchSize);
-    auto end = std::chrono::system_clock::now();
-    std::cout << "inference time: "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                       start)
-                     .count()
-              << "ms" << std::endl;
-
-    // Run Non Maximum Suppresion
-    std::vector<std::vector<Detection>> result_batch;
-    ApplyBatchNonMaxSuppression(result_batch, cpu_output_buffer,
-                                image_batch.size(), kOutputSize, kConfThresh,
-                                kNmsThresh);
-
-    // Draw bounding boxes
-    DrawBox(image_batch, result_batch);
-
-    // Save images
-    // Delete this for deployment
-    for (size_t j = 0; j < image_batch.size(); j++) {
-      cv::imwrite("_" + image_name_batch[j], image_batch[j]);
-    }
   }
+  // Preprocess
+  CudaPreprocessBatch(image_batch, gpu_buffers_[0], kInputW, kInputH, stream_);
+}
 
-  // Release stream and buffers
-  cudaStreamDestroy(stream);
-  CUDA_CHECK(cudaFree(gpu_buffers[0]));
-  CUDA_CHECK(cudaFree(gpu_buffers[1]));
-  delete[] cpu_output_buffer;
-  CudaPreprocessDestroy();
-  // Destroy the engine
-  context->destroy();
-  engine->destroy();
-  runtime->destroy();
+void YoloDetector::DrawDetections() {
+  // Run inference
+  auto start = std::chrono::system_clock::now();
+  RunInference(*context_, stream_, (void**)gpu_buffers_, cpu_output_buffer_,
+               kBatchSize);
+  auto end = std::chrono::system_clock::now();
+  std::cout << "inference time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << std::endl;
 
-  return 0;
+  // Run Non Maximum Suppresion
+  ApplyBatchNonMaxSuppression(result_batch_, cpu_output_buffer_,
+                              image_batch_.size(), kOutputSize, kConfThresh,
+                              kNmsThresh);
+
+  // Draw bounding boxes
+  DrawBox(image_batch_, result_batch_);
+
+  // Save images
+  // Delete this for deployment
+  for (size_t j = 0; j < image_batch_.size(); j++) {
+    cv::imwrite("_" + image_name_batch_[j], image_batch_[j]);
+  }
 }
