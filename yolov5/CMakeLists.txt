@@ -12,8 +12,9 @@ set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 enable_language(CUDA)
 
 #include glog
-find_package (glog 0.6.0 REQUIRED)
-include_directories(${GLOG_INCLUDE_DIRS})
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(glog REQUIRED libglog)
+include_directories(${glog_INCLUDE_DIRS})
 
 # include and link dirs of cuda and tensorrt, you need adapt them if yours are different
 # cuda
@@ -39,6 +40,6 @@ target_link_libraries(yolov5_det nvinfer)
 target_link_libraries(yolov5_det cudart)
 target_link_libraries(yolov5_det myplugins)
 target_link_libraries(yolov5_det ${OpenCV_LIBS})
-target_link_libraries(yolov5_det glog::glog)
+target_link_libraries(yolov5_det ${glog_LIBRARIES}
 
 

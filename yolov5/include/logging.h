@@ -331,7 +331,7 @@ class Logger : public nvinfer1::ILogger {
   //!
   static void reportTestEnd(const TestAtom& testAtom, TestResult result) {
     CHECK(result != TestResult::kRUNNING);
-    CHECK_NOTNULL(testAtom.mStarted);
+    CHECK(testAtom.mStarted);
     reportTestResult(testAtom, result);
   }
 
