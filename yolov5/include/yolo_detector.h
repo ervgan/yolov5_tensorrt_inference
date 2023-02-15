@@ -3,6 +3,8 @@
 #include <vector>
 
 #include "cuda_utils.h"
+#include "model.h"
+#include "types.h"
 
 class YoloDetector {
  public:

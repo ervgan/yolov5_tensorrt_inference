@@ -135,6 +135,7 @@ void YoloDetector::RunInference(IExecutionContext& context,
   cudaStreamSynchronize(stream);
 }
 
+// Serializes .wts file into .engine file
 void YoloDetector::SerializeEngine(unsigned int max_batch_size,
                                    float& depth_multiple, float& width_multiple,
                                    std::string& wts_file,
