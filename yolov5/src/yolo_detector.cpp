@@ -265,12 +265,13 @@ void YoloDetector::DrawDetections() {
               << "ms" << std::endl;
 
     // Run Non Maximum Suppresion
-    ApplyBatchNonMaxSuppression(result_batch_, cpu_output_buffer_,
+    std::vector<std::vector<Detection>> result_batch;
+    ApplyBatchNonMaxSuppression(result_batch, cpu_output_buffer_,
                                 image_batch.size(), kOutputSize, kConfThresh,
                                 kNmsThresh);
 
     // Draw bounding boxes
-    DrawBox(image_batch, result_batch_);
+    DrawBox(image_batch, result_batch);
 
     // Save images
     // Delete this for deployment

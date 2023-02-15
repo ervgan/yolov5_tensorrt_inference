@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "model.h"
-#include "types.h"
 
 using namespace nvinfer1;
 
@@ -47,5 +46,4 @@ class YoloDetector {
   cudaStream_t stream_;
   // this will not be needed for live detection
   std::vector<std::string> file_names_;
-  std::vector<std::vector<Detection>> result_batch_;
 };
