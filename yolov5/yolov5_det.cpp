@@ -177,6 +177,8 @@ int ReadDirFiles(const char* directory_name,
 }  // namespace
 
 int main(int argc, char** argv) {
+  // init glog
+  google::InitGoogleLogging("");
   cudaSetDevice(kGpuId);
 
   std::string wts_file = "";
@@ -270,6 +272,8 @@ int main(int argc, char** argv) {
     }
   }
 
+  // shutting down glog
+  google::ShutdownGoogleLogging();
   // Release stream and buffers
   cudaStreamDestroy(stream);
   CUDA_CHECK(cudaFree(gpu_buffers[0]));
