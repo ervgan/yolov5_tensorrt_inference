@@ -4,9 +4,12 @@
 int main(int argc, char** argv) {
   cudaSetDevice(kGpuId);
   YoloDetector yoloDetector;
-  yoloDetector.Init(argc, argv);
-  yoloDetector.ProcessImages();
-  yoloDetector.DrawDetections();
-
+  int state = yoloDetector.Init(argc, argv);
+  // state 0 corresponds to serializing file to .engine
+  // state 1 corresponds to using .engine for detection
+  if (state != 0) {
+    yoloDetector.ProcessImages();
+    yoloDetector.DrawDetections();
+  }
   return 0;
 }

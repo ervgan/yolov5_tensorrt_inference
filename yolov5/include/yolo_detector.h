@@ -13,7 +13,7 @@ class YoloDetector {
 
   ~YoloDetector();
 
-  void Init(int argc, char** argv);
+  int Init(int argc, char** argv);
 
   void PrepareMemoryBuffers(ICudaEngine* engine, float** gpu_input_buffer,
                             float** gpu_output_buffer,

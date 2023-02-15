@@ -197,7 +197,7 @@ void YoloDetector::DeserializeEngine(std::string& engine_file,
   delete[] serialized_engine;
 }
 
-void YoloDetector::Init(int argc, char** argv) {
+int YoloDetector::Init(int argc, char** argv) {
   // sets parameters
   if (!ParseArgs(argc, argv, wts_file_, engine_file_, depth_multiple_,
                  width_multiple_, image_directory_)) {
@@ -210,14 +210,14 @@ void YoloDetector::Init(int argc, char** argv) {
         << "./yolov5_det -d [.engine_file] ../images  // deserialize plan "
            "file and run inference"
         << std::endl;
-    return;
+    return -1;
   }
   // Create a model using the API directly and serialize it to a file
   // Converts .wts file to .engine file
   if (!wts_file_.empty()) {
     SerializeEngine(kBatchSize, depth_multiple_, width_multiple_, wts_file_,
                     engine_file_);
-    return;
+    return 0;
   }
   // Deserialize the engine_file from file to enable detection
   DeserializeEngine(engine_file_, &runtime_, &engine_, &context_);
@@ -227,6 +227,7 @@ void YoloDetector::Init(int argc, char** argv) {
   // Prepare cpu and gpu buffers
   PrepareMemoryBuffers(engine_, &gpu_buffers_[0], &gpu_buffers_[1],
                        &cpu_output_buffer_);
+  return 1;
 }
 
 void YoloDetector::ProcessImages() {
