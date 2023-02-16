@@ -1,0 +1,9 @@
+---
+#Completly disable the linter for this path.
+ignore: wts_converter.py
+
+# Fine-grained control which tasks should be run on path.
+# Either define whitelist or blacklist.
+whitelisted_tasks: []
+blacklisted_tasks: []
+...
