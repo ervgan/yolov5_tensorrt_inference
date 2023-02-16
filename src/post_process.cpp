@@ -128,7 +128,7 @@ void ApplyBatchNonMaxSuppression(
     float nms_thresh) {
   result_batch->resize(batch_size);
   for (int i = 0; i < batch_size; i++) {
-    ApplyNonMaxSuppresion((*result_batch)[i], &output[i * output_size],
+    ApplyNonMaxSuppresion(&result_batch[i], &output[i * output_size],
                           confidence_thresh, nms_thresh);
   }
 }
