@@ -47,7 +47,7 @@ cv::Rect ScaleRectangle(float bounding_box[4], float scale) {
 
 }  // namespace
 
-cv::Rect CreateRectangle(cv::Mat& image, float bounding_box[4]) {
+cv::Rect CreateRectangle(const cv::Mat& image, float bounding_box[4]) {
   float rectangle_top_left_x, rectangle_bottom_right_x, rectangle_top_left_y,
       rectangle_bottom_right_y;
   const float width_ratio = kInputW / (image.cols * 1.0);
