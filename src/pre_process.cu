@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 
+#include "../include/pre_process.h"
 #include "cuda_utils.h"
-#include "pre_process.h"
 
 static uint8_t* image_buffer_host = nullptr;
 static uint8_t* image_buffer_device = nullptr;
@@ -136,8 +136,9 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
                              cudaMemcpyHostToDevice, stream));
 
   AffineMatrix original_scalar, invert_scalar;
-  float scale = std::min(processing_image_height / (float)image_height,
-                         processing_image_width / (float)image_width);
+  float scale =
+      std::min(processing_image_height / static_float<float>(image_height),
+               processing_image_width / static_float<float>(image_width));
 
   // rotation components
   original_scalar.value[0] = scale;
@@ -160,7 +161,7 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
 
   int jobs = processing_image_height * processing_image_width;
   int threads = 256;
-  int blocks = ceil(jobs / (float)threads);
+  int blocks = ceil(jobs / static_float<float>(threads));
 
   WarpAffineKernel<<<blocks, threads, 0, stream>>>(
       image_buffer_device, image_width * 3, image_width, image_height,
@@ -168,8 +169,8 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
       128, invert_scalar, jobs);
 }
 
-void CudaPreprocessBatch(std::vector<cv::Mat>& image_batch, float* image_buffer,
-                         int processing_image_width,
+void CudaPreprocessBatch(const std::vector<cv::Mat>& image_batch,
+                         float* image_buffer, int processing_image_width,
                          int processing_image_height, cudaStream_t stream) {
   int processing_image_size =
       processing_image_width * processing_image_height * 3;
@@ -186,9 +187,11 @@ void CudaPreprocessBatch(std::vector<cv::Mat>& image_batch, float* image_buffer,
 
 void CudaPreprocessInit(int max_image_size) {
   // prepare input data in  CPU pinned memory
-  CUDA_CHECK(cudaMallocHost((void**)&image_buffer_host, max_image_size * 3));
+  CUDA_CHECK(cudaMallocHost(reinterpret_cast<void**>(&image_buffer_host),
+                            max_image_size * 3));
   // prepare input data in GPU device memory
-  CUDA_CHECK(cudaMalloc((void**)&image_buffer_device, max_image_size * 3));
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&image_buffer_device),
+                        max_image_size * 3));
 }
 
 void CudaPreprocessDestroy() {

@@ -1,5 +1,6 @@
 #include "../include/post_process.h"
 
+#include <iomanip>
 #include <sstream>
 
 namespace {
@@ -143,7 +144,8 @@ void DrawBox(const std::vector<cv::Mat>& image_batch,
       cv::Rect rectangle = CreateRectangle(image, result[j].bounding_box);
       cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
       cv::putText(image,
-                  std::to_string(static_cast<float>(result[j].confidence)),
+                  std::to_string(std::setprecision(2)
+                                 << static_cast<float>(result[j].confidence)),
                   cv::Point(rectangle.x, rectangle.y - 1),
                   cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
     }
