@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(yolov5)
+project(yolov5_tensorRT_inference)
 
 add_definitions(-std=c++11)
 add_definitions(-DAPI_EXPORTS)
