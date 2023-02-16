@@ -15,4 +15,4 @@ void ApplyBatchNonMaxSuppression(
     int batch_size, int output_size, float confidence_tresh, float nms_thresh);
 
 void DrawBox(const std::vector<cv::Mat>& image_batch,
-             const std::vector<std::vector<Detection>>& result_batch);
+             std::vector<std::vector<Detection>>* result_batch);

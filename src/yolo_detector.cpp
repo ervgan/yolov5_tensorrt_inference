@@ -271,7 +271,7 @@ void YoloDetector::DrawDetections() {
                                 kNmsThresh);
 
     // Draw bounding boxes
-    DrawBox(image_batch, result_batch);
+    DrawBox(image_batch, &result_batch);
 
     // Save images
     // Delete this for deployment
