@@ -142,7 +142,8 @@ void DrawBox(std::vector<cv::Mat>& image_batch,
     for (size_t j = 0; j < result.size(); j++) {
       cv::Rect rectangle = CreateRectangle(image, result[j].bounding_box);
       cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
-      cv::putText(image, static_cast<int>(result[j].class_id),
+      cv::putText(image,
+                  std::to_string(static_cast<float>(result[j].confidence)),
                   cv::Point(rectangle.x, rectangle.y - 1),
                   cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
     }
