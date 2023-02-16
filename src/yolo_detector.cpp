@@ -251,7 +251,7 @@ void YoloDetector::DrawDetections() {
       image_name_batch.push_back(file_names_[j]);
     }
     // Preprocess
-    CudaPreprocessBatch(image_batch, gpu_buffers_[0], kInputW, kInputH,
+    CudaPreprocessBatch(&image_batch, gpu_buffers_[0], kInputW, kInputH,
                         stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();

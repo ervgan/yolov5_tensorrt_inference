@@ -137,8 +137,8 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
 
   AffineMatrix original_scalar, invert_scalar;
   float scale =
-      std::min(processing_image_height / static_float<float>(image_height),
-               processing_image_width / static_float<float>(image_width));
+      std::min(processing_image_height / static_cast<float>(image_height),
+               processing_image_width / static_cast<float>(image_width));
 
   // rotation components
   original_scalar.value[0] = scale;
@@ -161,7 +161,7 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
 
   int jobs = processing_image_height * processing_image_width;
   int threads = 256;
-  int blocks = ceil(jobs / static_float<float>(threads));
+  int blocks = ceil(jobs / static_cast<float>(threads));
 
   WarpAffineKernel<<<blocks, threads, 0, stream>>>(
       image_buffer_device, image_width * 3, image_width, image_height,
@@ -169,14 +169,14 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
       128, invert_scalar, jobs);
 }
 
-void CudaPreprocessBatch(const std::vector<cv::Mat>& image_batch,
-                         float* image_buffer, int processing_image_width,
+void CudaPreprocessBatch(std::vector<cv::Mat>* image_batch, float* image_buffer,
+                         int processing_image_width,
                          int processing_image_height, cudaStream_t stream) {
   int processing_image_size =
       processing_image_width * processing_image_height * 3;
   for (size_t i = 0; i < image_batch.size(); i++) {
-    CudaPreprocess(image_batch[i].ptr(), image_batch[i].cols,
-                   image_batch[i].rows,
+    CudaPreprocess((*image_batch)[i].ptr(), (*image_batch)[i].cols,
+                   (*image_batch)[i].rows,
                    &image_buffer[processing_image_size * i],
                    processing_image_width, processing_image_height, stream);
     // synchronizes host CPU thread and the execution of a CUDA stream (sequence
