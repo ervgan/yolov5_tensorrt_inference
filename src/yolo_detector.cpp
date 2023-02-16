@@ -11,8 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "../include/logging/logging.h"
 #include "cuda_utils.h"
-#include "logging.h"
 #include "model.h"
 #include "post_process.h"
 #include "pre_process.h"
