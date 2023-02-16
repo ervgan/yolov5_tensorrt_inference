@@ -145,7 +145,7 @@ void DrawBox(const std::vector<cv::Mat>& image_batch,
       int rounded_confidence =
           static_cast<int>(std::round(result[j].confidence * 100));
       float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
-      cv::putText(image, std::to_string(result_confidence),
+      cv::putText(image, std::to_string(result_confidence).substr(0, 3),
                   cv::Point(rectangle.x, rectangle.y - 1),
                   cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
     }
