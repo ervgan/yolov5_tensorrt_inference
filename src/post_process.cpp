@@ -1,4 +1,4 @@
-#include "post_process.h"
+#include "../include/post_process.h"
 
 #include <sstream>
 
@@ -84,7 +84,7 @@ cv::Rect CreateRectangle(cv::Mat& image, float bounding_box[4]) {
 
 // uses intersection_over_union to delete duplicate bounding boxes
 // for the same detection
-void ApplyNonMaxSuppresion(std::vector<Detection>& results, float* output,
+void ApplyNonMaxSuppresion(std::vector<Detection>* results, float* output,
                            float confidence_thresh, float nms_thresh) {
   int detection_size = sizeof(Detection) / sizeof(float);
   std::map<float, std::vector<Detection>> detection_map;
@@ -109,7 +109,7 @@ void ApplyNonMaxSuppresion(std::vector<Detection>& results, float* output,
 
     for (size_t i = 0; i < detections.size(); ++i) {
       auto& item = detections[i];
-      results.push_back(item);
+      results->push_back(item);
 
       for (size_t n = i + 1; n < detections.size(); ++n) {
         if (intersection_over_union(item.bounding_box,
@@ -123,12 +123,12 @@ void ApplyNonMaxSuppresion(std::vector<Detection>& results, float* output,
 }
 
 void ApplyBatchNonMaxSuppression(
-    std::vector<std::vector<Detection>>& result_batch, float* output,
+    std::vector<std::vector<Detection>>* result_batch, float* output,
     int batch_size, int output_size, float confidence_thresh,
     float nms_thresh) {
-  result_batch.resize(batch_size);
+  result_batch->resize(batch_size);
   for (int i = 0; i < batch_size; i++) {
-    ApplyNonMaxSuppresion(result_batch[i], &output[i * output_size],
+    ApplyNonMaxSuppresion((*result_batch)[i], &output[i * output_size],
                           confidence_thresh, nms_thresh);
   }
 }
