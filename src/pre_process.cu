@@ -175,8 +175,8 @@ void CudaPreprocessBatch(std::vector<cv::Mat>* image_batch, float* image_buffer,
   int processing_image_size =
       processing_image_width * processing_image_height * 3;
   for (size_t i = 0; i < image_batch.size(); i++) {
-    CudaPreprocess(&(*image_batch)[i].ptr(), &(*image_batch)[i].cols,
-                   &(*image_batch)[i].rows,
+    CudaPreprocess(&(*image_batch)[i].ptr(), (*image_batch)[i].cols,
+                   (*image_batch)[i].rows,
                    &image_buffer[processing_image_size * i],
                    processing_image_width, processing_image_height, stream);
     // synchronizes host CPU thread and the execution of a CUDA stream (sequence
