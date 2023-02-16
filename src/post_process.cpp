@@ -133,8 +133,8 @@ void ApplyBatchNonMaxSuppression(
   }
 }
 
-void DrawBox(std::vector<cv::Mat>& image_batch,
-             std::vector<std::vector<Detection>>& result_batch) {
+void DrawBox(const std::vector<cv::Mat>& image_batch,
+             const std::vector<std::vector<Detection>>& result_batch) {
   for (size_t i = 0; i < image_batch.size(); i++) {
     auto& result = result_batch[i];
     cv::Mat image = image_batch[i];
