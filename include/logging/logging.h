@@ -26,7 +26,7 @@
 #include <sstream>
 #include <string>
 
-#include "CPP_INF_TENSORRT/include/macros.h"
+#include "../include/macros.h"
 #include "NvInferRuntimeCommon.h"
 
 using Severity = nvinfer1::ILogger::Severity;
