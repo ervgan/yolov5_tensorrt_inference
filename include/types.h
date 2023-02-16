@@ -1,6 +1,6 @@
 #pragma once
 
-#include "config.h"
+#include "CPP_INF_TENSORRT/include/config.h"
 
 struct YoloKernel {
   int width;

@@ -5,16 +5,14 @@
  * please re-compile and re-serialize the tensorrt model.
  * --------------------------------------------------------*/
 
-// For INT8, you need prepare the calibration dataset, please refer to
-// https://github.com/wang-xinyu/tensorrtx/tree/master/yolov5#int8-quantization
-#define USE_FP16  // set USE_INT8 or USE_FP16 or USE_FP32
+#define USE_FP16  // stensorRT uses FP16
 
 // These are used to define input/output tensor names,
 // you can set them to whatever you want.
 const static char* kInputTensorName = "data";
 const static char* kOutputTensorName = "prob";
 
-// Detection model model' number of classes
+// Detection model' number of classes
 constexpr static int kNumClass = 1;
 
 constexpr static int kBatchSize = 1;
