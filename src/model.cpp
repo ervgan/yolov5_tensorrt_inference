@@ -11,7 +11,7 @@
 #include "../include/config.h"
 #include "../plugin/yolo_layer.h"
 
-using nvinfer1;
+using namespace nvinfer1;
 
 // C++ implementation of Yolov5 modules in models/common.py
 // https://github.com/ultralytics/yolov5/blob/d02ee60512c50d9573bb7a136d8baade8a0bd332/models/common.py#L159
