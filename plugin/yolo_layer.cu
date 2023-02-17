@@ -233,8 +233,8 @@ __global__ void CallDetection(const float *input, float *output,
     // in a thread safe manner without race conditions
     int count = static_cast<int>(atomicAdd(result_count, 1));
     if (count >= max_output_object) return;
-    char *data = reinterpret_cast<char *>(result_count + sizeof(float) +
-                                          count * sizeof(Detection));
+    char *data = reinterpret_cast<char *>(result_count) + sizeof(float) +
+                 count * sizeof(Detection);
     Detection *detection = reinterpret_cast<Detection *>(data);
 
     int row = thread_id / yolo_width;
@@ -334,12 +334,13 @@ IPluginV2IOExt *YoloPluginCreator::createPlugin(
   CHECK_EQ(plugin_fields->nbFields, 2);
   CHECK_EQ(strcmp(plugin_fields->fields[0].name, "netinfo"), 0);
   CHECK_EQ(strcmp(plugin_fields->fields[1].name, "kernels"), 0);
-  int *neural_net_info = (int *)(plugin_fields->fields[0].data);
+  const int *neural_net_info =
+      reinterpret_cast<const int *>(plugin_fields->fields[0].data);
   int class_count = neural_net_info[0];
   int input_width = neural_net_info[1];
   int input_height = neural_net_info[2];
   int max_output_object_count = neural_net_info[3];
-  bool is_segmentation = (bool)neural_net_info[4];
+  bool is_segmentation = static_cast<bool> neural_net_info[4];
   std::vector<YoloKernel> kernels(plugin_fields->fields[1].length);
   memcpy(&kernels[0], plugin_fields->fields[1].data,
          kernels.size() * sizeof(YoloKernel));
