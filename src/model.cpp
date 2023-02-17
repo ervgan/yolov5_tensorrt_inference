@@ -1,4 +1,4 @@
-#include "model.h"
+#include "../include/model.h"
 
 #include <glog/logging.h>
 
@@ -8,10 +8,11 @@
 #include <iostream>
 #include <map>
 
-#include "config.h"
-#include "yolo_layer.h"
+#include "../include/config.h"
+#include "../plugin/yolo_layer.h"
 
-using namespace nvinfer1;
+using nvinfer1::YoloLayerPlugin;
+using nvinfer1::YoloPluginCreator;
 
 // C++ implementation of Yolov5 modules in models/common.py
 // https://github.com/ultralytics/yolov5/blob/d02ee60512c50d9573bb7a136d8baade8a0bd332/models/common.py#L159
@@ -32,6 +33,7 @@ std::map<std::string, Weights> LoadWeights(const std::string file) {
   int32_t count;
   input >> count;
   CHECK(count > 0 && "Invalid weight map file.");
+
   // get weights for each
   while (count--) {
     Weights weight{DataType::kFLOAT, nullptr, 0};
@@ -41,88 +43,103 @@ std::map<std::string, Weights> LoadWeights(const std::string file) {
     input >> name >> std::dec >> size;
     weight.type = DataType::kFLOAT;
     // Load blob
-    uint32_t* weights =
-        reinterpret_cast<uint32_t*>(malloc(sizeof(weights) * size));
+    uint32_t *weights =
+        reinterpret_cast<uint32_t *>(malloc(sizeof(weights) * size));
+
     for (uint32_t x = 0, y = size; x < y; ++x) {
       input >> std::hex >> weights[x];
     }
+
     weight.values = weights;
     weight.count = size;
     weight_map[name] = weight;
   }
+
   return weight_map;
 }
 
 // get nb of output channels
 int get_width(int width, float width_multiplier) {
   const int divisor = 8;
-  return int(ceil((width * width_multiplier) / divisor)) * divisor;
+  return static_cast<int>(ceil((width * width_multiplier) / divisor)) * divisor;
 }
 
-int get_width(int width, float width_multiplier, int divisor) {
-  return int(ceil((width * width_multiplier) / divisor)) * divisor;
+int get_width(int width, const float width_multiplier, int divisor) {
+  return static_cast<int>(ceil((width * width_multiplier) / divisor)) * divisor;
 }
 
 // get number of layers in the network
-int get_depth(int depth, float depth_multiplier) {
-  if (depth == 1) return 1;
+int get_depth(int depth, const float depth_multiplier) {
+  if (depth == 1) {
+    return 1;
+  }
+
   int scaled_depth = round(depth * depth_multiplier);
-  if (depth * depth_multiplier - int(depth * depth_multiplier) == 0.5 &&
-      (int(depth * depth_multiplier) % 2) == 0) {
+
+  if (depth * depth_multiplier - static_cast<int>(depth * depth_multiplier) ==
+          0.5 &&
+      (static_cast<int>(depth * depth_multiplier) % 2) == 0) {
     --scaled_depth;
   }
+
   return std::max<int>(scaled_depth, 1);
 }
 
 // add batch normalization to address internal covariate shift
 // returns normalized layer
-IScaleLayer* AddBatchNorm2D(INetworkDefinition* network,
-                            std::map<std::string, Weights>& weight_map,
-                            ITensor& input, const std::string& layer_name,
+IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
+                            std::map<std::string, Weights> &weight_map,
+                            ITensor &input, const std::string &layer_name,
                             float eps) {
-  float* gamma = (float*)weight_map[layer_name + ".weight"].values;
-  float* beta = (float*)weight_map[layer_name + ".bias"].values;
-  float* mean = (float*)weight_map[layer_name + ".running_mean"].values;
-  float* var = (float*)weight_map[layer_name + ".running_var"].values;
+  float *gamma = (float *)weight_map[layer_name + ".weight"].values;
+  float *beta = (float *)weight_map[layer_name + ".bias"].values;
+  float *mean = (float *)weight_map[layer_name + ".running_mean"].values;
+  float *var = (float *)weight_map[layer_name + ".running_var"].values;
   const int kLen = weight_map[layer_name + ".running_var"].count;
 
-  float* scale_values = reinterpret_cast<float*>(malloc(sizeof(float) * kLen));
+  float *scale_values = reinterpret_cast<float *>(malloc(sizeof(float) * kLen));
+
   for (int i = 0; i < kLen; i++) {
     scale_values[i] = gamma[i] / sqrt(var[i] + eps);
   }
+
   Weights scale{DataType::kFLOAT, scale_values, kLen};
 
-  float* shift_values = reinterpret_cast<float*>(malloc(sizeof(float) * kLen));
+  float *shift_values = reinterpret_cast<float *>(malloc(sizeof(float) * kLen));
+
   for (int i = 0; i < kLen; i++) {
     shift_values[i] = beta[i] - mean[i] * gamma[i] / sqrt(var[i] + eps);
   }
+
   Weights shift{DataType::kFLOAT, shift_values, kLen};
 
-  float* power_values = reinterpret_cast<float*>(malloc(sizeof(float) * kLen));
+  float *power_values = reinterpret_cast<float *>(malloc(sizeof(float) * kLen));
+
   for (int i = 0; i < kLen; i++) {
     power_values[i] = 1.0;
   }
+
   Weights power{DataType::kFLOAT, power_values, kLen};
 
   weight_map[layer_name + ".scale"] = scale;
   weight_map[layer_name + ".shift"] = shift;
   weight_map[layer_name + ".power"] = power;
 
-  IScaleLayer* scale_layer =
+  IScaleLayer *scale_layer =
       network->addScale(input, ScaleMode::kCHANNEL, shift, scale, power);
   CHECK_NOTNULL(scale_layer);
   return scale_layer;
 }
 
 // returns a single TensorRT layer
-ILayer* CreateConvoLayer(INetworkDefinition* network,
-                         std::map<std::string, Weights>& weight_map,
-                         ITensor& input, int output, int kernel_size,
+ILayer *CreateConvoLayer(INetworkDefinition *network,
+                         std::map<std::string, Weights> &weight_map,
+                         ITensor &input, int output, int kernel_size,
                          int stride, int nb_groups,
-                         const std::string& layer_name) {
+                         const std::string &layer_name) {
   Weights empty_wts{DataType::kFLOAT, nullptr, 0};
   const int kPadding = kernel_size / 3;
-  IConvolutionLayer* convo_layer = network->addConvolutionNd(
+  IConvolutionLayer *convo_layer = network->addConvolutionNd(
       input, output, DimsHW{kernel_size, kernel_size},
       weight_map[layer_name + ".conv.weight"], empty_wts);
 
@@ -132,7 +149,7 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
   convo_layer->setPaddingNd(DimsHW{kPadding, kPadding});
   convo_layer->setNbGroups(nb_groups);
   convo_layer->setName((layer_name + ".conv").c_str());
-  IScaleLayer* batch_norm_layer =
+  IScaleLayer *batch_norm_layer =
       AddBatchNorm2D(network, weight_map, *convo_layer->getOutput(0),
                      layer_name + ".bn", 1e-3);
 
@@ -148,11 +165,11 @@ ILayer* CreateConvoLayer(INetworkDefinition* network,
 }
 
 // Creates Bottleneck Layer
-ILayer* CreateBottleneckLayer(INetworkDefinition* network,
-                              std::map<std::string, Weights>& weight_map,
-                              ITensor& input, int intput_channel,
+ILayer *CreateBottleneckLayer(INetworkDefinition *network,
+                              std::map<std::string, Weights> &weight_map,
+                              ITensor &input, int intput_channel,
                               int output_channel, bool shortcut, int nb_groups,
-                              float expansion, const std::string& layer_name) {
+                              float expansion, const std::string &layer_name) {
   const int kOutputMaps1 = (int)((float)output_channel * expansion);
   const int kKernelSize1 = 1;
   const int kStride1 = 1;
@@ -179,12 +196,12 @@ ILayer* CreateBottleneckLayer(INetworkDefinition* network,
 
 // Simplified cross stage partial bottleneck using partial bottlenecks
 // to extract multi-scale features
-ILayer* CreateC3Bottleneck(INetworkDefinition* network,
-                           std::map<std::string, Weights>& weight_map,
-                           ITensor& input, int input_channel,
+ILayer *CreateC3Bottleneck(INetworkDefinition *network,
+                           std::map<std::string, Weights> &weight_map,
+                           ITensor &input, int input_channel,
                            int output_channel, int n, bool shortcut,
                            int nb_groups, float expansion,
-                           const std::string& layer_name) {
+                           const std::string &layer_name) {
   int hidden_channel = (int)((float)output_channel * expansion);
 
   auto convo_layer_1 = CreateConvoLayer(
@@ -193,7 +210,7 @@ ILayer* CreateC3Bottleneck(INetworkDefinition* network,
   auto convo_layer_2 = CreateConvoLayer(
       network, weight_map, input, hidden_channel, 1, 1, 1, layer_name + ".cv2");
 
-  ITensor* y1 = convo_layer_1->getOutput(0);
+  ITensor *y1 = convo_layer_1->getOutput(0);
 
   for (int i = 0; i < n; i++) {
     auto b = CreateBottleneckLayer(network, weight_map, *y1, hidden_channel,
@@ -202,7 +219,7 @@ ILayer* CreateC3Bottleneck(INetworkDefinition* network,
     y1 = b->getOutput(0);
   }
 
-  ITensor* inputTensors[] = {y1, convo_layer_2->getOutput(0)};
+  ITensor *inputTensors[] = {y1, convo_layer_2->getOutput(0)};
   auto cat = network->addConcatenation(inputTensors, 2);
 
   auto convo_layer_3 =
@@ -213,9 +230,9 @@ ILayer* CreateC3Bottleneck(INetworkDefinition* network,
 
 // Faster implementation of the spatial pyramid pooling layer
 // with less FLOPs
-ILayer* CreateSPPFLayer(INetworkDefinition* network,
-                        std::map<std::string, Weights>& weight_map,
-                        ITensor& input, int input_channel, int output_channel,
+ILayer *CreateSPPFLayer(INetworkDefinition *network,
+                        std::map<std::string, Weights> &weight_map,
+                        ITensor &input, int input_channel, int output_channel,
                         int dimensions, std::string layer_name) {
   int hidden_channels = input_channel / 2;
 
@@ -238,7 +255,7 @@ ILayer* CreateSPPFLayer(INetworkDefinition* network,
                             DimsHW{dimensions, dimensions});
   pooling_layer_3->setPaddingNd(DimsHW{dimensions / 2, dimensions / 2});
   pooling_layer_3->setStrideNd(DimsHW{1, 1});
-  ITensor* inputTensors[] = {
+  ITensor *inputTensors[] = {
       convo_layer_1->getOutput(0), pooling_layer_1->getOutput(0),
       pooling_layer_2->getOutput(0), pooling_layer_3->getOutput(0)};
 
@@ -251,13 +268,13 @@ ILayer* CreateSPPFLayer(INetworkDefinition* network,
 }
 
 std::vector<std::vector<float>> getAnchors(
-    std::map<std::string, Weights>& weight_map, const std::string& layer_name) {
+    std::map<std::string, Weights> &weight_map, const std::string &layer_name) {
   std::vector<std::vector<float>> anchors;
   Weights weights = weight_map[layer_name + ".anchor_grid"];
   const int anchor_len = kNumAnchor * 2;
 
   for (int i = 0; i < weights.count / anchor_len; i++) {
-    auto* p = (const float*)weights.values + i * anchor_len;
+    auto *p = (const float *)weights.values + i * anchor_len;
     std::vector<float> anchor(p, p + anchor_len);
     anchors.push_back(anchor);
   }
@@ -265,10 +282,10 @@ std::vector<std::vector<float>> getAnchors(
   return anchors;
 }
 
-IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
-                             std::map<std::string, Weights>& weight_map,
+IPluginV2Layer *AddYoLoLayer(INetworkDefinition *network,
+                             std::map<std::string, Weights> &weight_map,
                              std::string layer_name,
-                             std::vector<IConvolutionLayer*> dets,
+                             std::vector<IConvolutionLayer *> dets,
                              bool is_segmentation = false) {
   auto creator = getPluginRegistry()->getPluginCreator("YoloLayer_TRT", "1");
   auto anchors = getAnchors(weight_map, layer_name);
@@ -284,10 +301,11 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
   CHECK(weight_map.find(layer_name + ".strides") != weight_map.end() &&
         "Not found `strides`, please check wts_converter.py!!!");
   Weights strides = weight_map[layer_name + ".strides"];
-  auto* p = (const float*)(strides.values);
+  auto *p = (const float *)(strides.values);
   std::vector<int> scales(p, p + strides.count);
 
   std::vector<YoloKernel> kernels;
+
   for (size_t i = 0; i < anchors.size(); i++) {
     YoloKernel kernel;
     kernel.width = kInputW / scales[i];
@@ -295,6 +313,7 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
     memcpy(kernel.anchors, &anchors[i][0], anchors[i].size() * sizeof(float));
     kernels.push_back(kernel);
   }
+
   plugin_fields[1].data = &kernels[0];
   plugin_fields[1].length = kernels.size();
   plugin_fields[1].name = "kernels";
@@ -302,11 +321,13 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
   PluginFieldCollection plugin_data;
   plugin_data.nbFields = 2;
   plugin_data.fields = plugin_fields;
-  IPluginV2* plugin_obj = creator->createPlugin("yololayer", &plugin_data);
-  std::vector<ITensor*> input_tensors;
+  IPluginV2 *plugin_obj = creator->createPlugin("yololayer", &plugin_data);
+  std::vector<ITensor *> input_tensors;
+
   for (auto det : dets) {
     input_tensors.push_back(det->getOutput(0));
   }
+
   auto yolo_layer = network->addPluginV2(&input_tensors[0],
                                          input_tensors.size(), *plugin_obj);
   return yolo_layer;
@@ -314,15 +335,15 @@ IPluginV2Layer* AddYoLoLayer(INetworkDefinition* network,
 
 }  // namespace
 
-ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
-                                  IBuilderConfig* config, DataType dt,
-                                  float& depth_multiplier,
-                                  float& width_multiplier,
-                                  const std::string& wts_file_name) {
-  INetworkDefinition* network = builder->createNetworkV2(0U);
+ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
+                                  IBuilderConfig *config, DataType dt,
+                                  const float &depth_multiplier,
+                                  const float &width_multiplier,
+                                  const std::string &wts_file_name) {
+  INetworkDefinition *network = builder->createNetworkV2(0U);
 
   // Create input tensor of shape {3, kInputH, kInputW}
-  ITensor* data =
+  ITensor *data =
       network->addInput(kInputTensorName, dt, Dims3{3, kInputH, kInputW});
   CHECK_NOTNULL(data);
   std::map<std::string, Weights> weight_map = LoadWeights(wts_file_name);
@@ -385,7 +406,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
   upsample_layer_11->setOutputDimensions(
       bottleneck_layer_6->getOutput(0)->getDimensions());
 
-  ITensor* input_tensors_layer_12[] = {upsample_layer_11->getOutput(0),
+  ITensor *input_tensors_layer_12[] = {upsample_layer_11->getOutput(0),
                                        bottleneck_layer_6->getOutput(0)};
 
   auto concatenation_layer_12 =
@@ -406,7 +427,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
   upsample_layer_15->setOutputDimensions(
       bottleneck_layer_4->getOutput(0)->getDimensions());
 
-  ITensor* input_tensors_layer_16[] = {upsample_layer_15->getOutput(0),
+  ITensor *input_tensors_layer_16[] = {upsample_layer_15->getOutput(0),
                                        bottleneck_layer_4->getOutput(0)};
   auto concatenation_layer_16 =
       network->addConcatenation(input_tensors_layer_16, 2);
@@ -417,7 +438,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
       get_depth(3, depth_multiplier), false, 1, 0.5, "model.17");
 
   // Detect
-  IConvolutionLayer* det0 = network->addConvolutionNd(
+  IConvolutionLayer *det0 = network->addConvolutionNd(
       *bottleneck_layer_17->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.0.weight"], weight_map["model.24.m.0.bias"]);
 
@@ -425,7 +446,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
       CreateConvoLayer(network, weight_map, *bottleneck_layer_17->getOutput(0),
                        get_width(256, width_multiplier), 3, 2, 1, "model.18");
 
-  ITensor* input_tensors_layer_19[] = {convo_layer_18->getOutput(0),
+  ITensor *input_tensors_layer_19[] = {convo_layer_18->getOutput(0),
                                        convo_layer_14->getOutput(0)};
   auto cat19 = network->addConcatenation(input_tensors_layer_19, 2);
 
@@ -434,7 +455,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
       get_width(512, width_multiplier), get_width(512, width_multiplier),
       get_depth(3, depth_multiplier), false, 1, 0.5, "model.20");
 
-  IConvolutionLayer* det1 = network->addConvolutionNd(
+  IConvolutionLayer *det1 = network->addConvolutionNd(
       *bottleneck_layer_20->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.1.weight"], weight_map["model.24.m.1.bias"]);
 
@@ -442,7 +463,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
       CreateConvoLayer(network, weight_map, *bottleneck_layer_20->getOutput(0),
                        get_width(512, width_multiplier), 3, 2, 1, "model.21");
 
-  ITensor* input_tensors_layer_22[] = {convo_layer_21->getOutput(0),
+  ITensor *input_tensors_layer_22[] = {convo_layer_21->getOutput(0),
                                        convo_layer_10->getOutput(0)};
 
   auto concatenation_layer_22 =
@@ -453,13 +474,13 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
       get_width(1024, width_multiplier), get_width(1024, width_multiplier),
       get_depth(3, depth_multiplier), false, 1, 0.5, "model.23");
 
-  IConvolutionLayer* det2 = network->addConvolutionNd(
+  IConvolutionLayer *det2 = network->addConvolutionNd(
       *bottleneck_layer_23->getOutput(0), 3 * (kNumClass + 5), DimsHW{1, 1},
       weight_map["model.24.m.2.weight"], weight_map["model.24.m.2.bias"]);
 
   auto yolo_layer =
       AddYoLoLayer(network, weight_map, "model.24",
-                   std::vector<IConvolutionLayer*>{det0, det1, det2});
+                   std::vector<IConvolutionLayer *>{det0, det1, det2});
   yolo_layer->getOutput(0)->setName(kOutputTensorName);
   network->markOutput(*yolo_layer->getOutput(0));
 
@@ -471,15 +492,15 @@ ICudaEngine* BuildDetectionEngine(unsigned int maxBatchSize, IBuilder* builder,
 #endif
 
   std::cout << "Building engine, please wait for a while..." << std::endl;
-  ICudaEngine* engine = builder->buildEngineWithConfig(*network, *config);
+  ICudaEngine *engine = builder->buildEngineWithConfig(*network, *config);
   std::cout << "Build engine successfully!" << std::endl;
 
   // Don't need the network any more
   network->destroy();
 
   // Release host memory
-  for (auto& mem : weight_map) {
-    free((void*)(mem.second.values));
+  for (auto &mem : weight_map) {
+    free((void *)(mem.second.values));
   }
 
   return engine;

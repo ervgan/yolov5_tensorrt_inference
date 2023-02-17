@@ -1,6 +1,7 @@
 import argparse
 import os
 import struct
+
 import torch
 from utils.torch_utils import select_device
 

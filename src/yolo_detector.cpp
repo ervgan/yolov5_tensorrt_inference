@@ -25,54 +25,69 @@ const int kOutputSize =
 
 namespace {
 
-bool ParseArgs(int argc, char** argv, std::string& wts_file,
-               std::string& engine_file, float& depth_multiple,
-               float& width_multiple, std::string& image_directory) {
-  if (argc < 4) return false;
+bool ParseArgs(int argc, char **argv, std::string &wts_file,
+               std::string &engine_file, float &depth_multiple,
+               float &width_multiple, std::string &image_directory) {
+  if (argc < 4) {
+    return false;
+  }
+
   if (std::string(argv[1]) == "-s" && (argc == 5 || argc == 7)) {
     wts_file = std::string(argv[2]);
     engine_file = std::string(argv[3]);
     auto net = std::string(argv[4]);
+
     // the following model width and depth multiples
     // are defined in the yolov5.yaml files in the yolo repo
     if (net[0] == 'n') {
       depth_multiple = 0.33;
       width_multiple = 0.25;
+
     } else if (net[0] == 's') {
       depth_multiple = 0.33;
       width_multiple = 0.50;
+
     } else if (net[0] == 'm') {
       depth_multiple = 0.67;
       width_multiple = 0.75;
+
     } else if (net[0] == 'l') {
       depth_multiple = 1.0;
       width_multiple = 1.0;
+
     } else if (net[0] == 'x') {
       depth_multiple = 1.33;
       width_multiple = 1.25;
+
     } else if (net[0] == 'c' && argc == 7) {
       depth_multiple = atof(argv[5]);
       width_multiple = atof(argv[6]);
+
     } else {
       return false;
     }
+
   } else if (std::string(argv[1]) == "-d" && argc == 4) {
     engine_file = std::string(argv[2]);
     image_directory = std::string(argv[3]);
+
   } else {
     return false;
   }
+
   return true;
 }
 
-int ReadDirFiles(const char* directory_name,
-                 std::vector<std::string>& file_names) {
-  DIR* directory = opendir(directory_name);
+int ReadDirFiles(const char *directory_name,
+                 std::vector<std::string> &file_names) {
+  DIR *directory = opendir(directory_name);
+
   if (directory == nullptr) {
     return -1;
   }
 
-  struct dirent* file = nullptr;
+  struct dirent *file = nullptr;
+
   while ((file = readdir(directory)) != nullptr) {
     if (strcmp(file->d_name, ".") != 0 && strcmp(file->d_name, "..") != 0) {
       std::string cur_file_name(file->d_name);
@@ -84,7 +99,7 @@ int ReadDirFiles(const char* directory_name,
   return 0;
 }
 
-}  // namespace
+} // namespace
 
 YoloDetector::YoloDetector() {}
 
@@ -100,10 +115,10 @@ YoloDetector::~YoloDetector() {
   runtime_->destroy();
 };
 
-void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
-                                        float** gpu_input_buffer,
-                                        float** gpu_output_buffer,
-                                        float** cpu_output_buffer) {
+void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
+                                        float **gpu_input_buffer,
+                                        float **gpu_output_buffer,
+                                        float **cpu_output_buffer) {
   CHECK(engine->getNbBindings() == 2);
   // In order to bind the buffers, we need to know the names of the input and
   // output tensors. Note that indices are guaranteed to be less than
@@ -113,17 +128,17 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
   CHECK_EQ(kInputIndex, 0);
   CHECK_EQ(kOutputIndex, 1);
   // Create GPU buffers on device
-  CUDA_CHECK(cudaMalloc((void**)gpu_input_buffer,
+  CUDA_CHECK(cudaMalloc((void **)gpu_input_buffer,
                         kBatchSize * 3 * kInputH * kInputW * sizeof(float)));
-  CUDA_CHECK(cudaMalloc((void**)gpu_output_buffer,
+  CUDA_CHECK(cudaMalloc((void **)gpu_output_buffer,
                         kBatchSize * kOutputSize * sizeof(float)));
 
   *cpu_output_buffer = new float[kBatchSize * kOutputSize];
 }
 
-void YoloDetector::RunInference(IExecutionContext& context,
-                                cudaStream_t& stream, void** gpu_buffers,
-                                float* output, int batch_size) {
+void YoloDetector::RunInference(IExecutionContext &context,
+                                cudaStream_t &stream, void **gpu_buffers,
+                                float *output, int batch_size) {
   // Sets execution context for TensorRT
   context.enqueue(batch_size, gpu_buffers, stream, nullptr);
   // async memory copy between host and GPU device
@@ -135,16 +150,16 @@ void YoloDetector::RunInference(IExecutionContext& context,
 
 // Serializes .wts file into .engine file
 void YoloDetector::SerializeEngine(unsigned int max_batch_size,
-                                   float& depth_multiple, float& width_multiple,
-                                   std::string& wts_file,
-                                   std::string& engine_file) {
+                                   float &depth_multiple, float &width_multiple,
+                                   std::string &wts_file,
+                                   std::string &engine_file) {
   // Create builder
-  IBuilder* builder = createInferBuilder(tensorrt_logger);
-  IBuilderConfig* config = builder->createBuilderConfig();
+  IBuilder *builder = createInferBuilder(tensorrt_logger);
+  IBuilderConfig *config = builder->createBuilderConfig();
 
   // Create model to populate the network, then set the outputs and create an
   // engine
-  ICudaEngine* engine = nullptr;
+  ICudaEngine *engine = nullptr;
   // configure tensorRT engine file
   engine =
       BuildDetectionEngine(max_batch_size, builder, config, DataType::kFLOAT,
@@ -152,16 +167,18 @@ void YoloDetector::SerializeEngine(unsigned int max_batch_size,
   CHECK_NOTNULL(engine);
 
   // Serialize the engine
-  IHostMemory* serialized_engine = engine->serialize();
+  IHostMemory *serialized_engine = engine->serialize();
   CHECK_NOTNULL(serialized_engine);
 
   // Save engine to file
   std::ofstream file(engine_file, std::ios::binary);
+
   if (!file) {
     std::cerr << "Could not open plan output file" << std::endl;
     CHECK(false);
   }
-  file.write(reinterpret_cast<const char*>(serialized_engine->data()),
+
+  file.write(reinterpret_cast<const char *>(serialized_engine->data()),
              serialized_engine->size());
 
   // Close everything down
@@ -171,19 +188,21 @@ void YoloDetector::SerializeEngine(unsigned int max_batch_size,
   serialized_engine->destroy();
 }
 
-void YoloDetector::DeserializeEngine(std::string& engine_file,
-                                     IRuntime** runtime, ICudaEngine** engine,
-                                     IExecutionContext** context) {
+void YoloDetector::DeserializeEngine(std::string &engine_file,
+                                     IRuntime **runtime, ICudaEngine **engine,
+                                     IExecutionContext **context) {
   std::ifstream file(engine_file, std::ios::binary);
+
   if (!file.good()) {
     std::cerr << "read " << engine_file << " error!" << std::endl;
     CHECK(false);
   }
+
   size_t size = 0;
   file.seekg(0, file.end);
   size = file.tellg();
   file.seekg(0, file.beg);
-  char* serialized_engine = new char[size];
+  char *serialized_engine = new char[size];
   CHECK_NOTNULL(serialized_engine);
   file.read(serialized_engine, size);
   file.close();
@@ -197,7 +216,7 @@ void YoloDetector::DeserializeEngine(std::string& engine_file,
   delete[] serialized_engine;
 }
 
-int YoloDetector::Init(int argc, char** argv) {
+int YoloDetector::Init(int argc, char **argv) {
   // sets parameters
   if (!ParseArgs(argc, argv, wts_file_, engine_file_, depth_multiple_,
                  width_multiple_, image_directory_)) {
@@ -212,6 +231,7 @@ int YoloDetector::Init(int argc, char** argv) {
         << std::endl;
     return -1;
   }
+
   // Create a model using the API directly and serialize it to a file
   // Converts .wts file to .engine file
   if (!wts_file_.empty()) {
@@ -219,6 +239,7 @@ int YoloDetector::Init(int argc, char** argv) {
                     engine_file_);
     return 0;
   }
+
   // Deserialize the engine_file from file to enable detection
   DeserializeEngine(engine_file_, &runtime_, &engine_, &context_);
   CUDA_CHECK(cudaStreamCreate(&stream_));
@@ -250,12 +271,13 @@ void YoloDetector::DrawDetections() {
       image_batch.push_back(image);
       image_name_batch.push_back(file_names_[j]);
     }
+
     // Preprocess
     CudaPreprocessBatch(&image_batch, gpu_buffers_[0], kInputW, kInputH,
                         stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();
-    RunInference(*context_, stream_, (void**)gpu_buffers_, cpu_output_buffer_,
+    RunInference(*context_, stream_, (void **)gpu_buffers_, cpu_output_buffer_,
                  kBatchSize);
     auto end = std::chrono::system_clock::now();
     std::cout << "inference time: "

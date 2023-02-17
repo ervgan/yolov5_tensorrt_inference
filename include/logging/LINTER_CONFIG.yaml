@@ -1,6 +1,6 @@
 ---
-#Completly disable the linter for this path.
-ignore_path: False
+# Disable linter for this whole directory.
+ignore_path: True
 
 # Fine-grained control which tasks should be run on path.
 # Either define whitelist or blacklist.

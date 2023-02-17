@@ -1,10 +1,10 @@
 #include <glog/logging.h>
 
+#include "../include/cuda_utils.h"
 #include "../include/pre_process.h"
-#include "cuda_utils.h"
 
-static uint8_t* image_buffer_host = nullptr;
-static uint8_t* image_buffer_device = nullptr;
+static uint8_t *image_buffer_host = nullptr;
+static uint8_t *image_buffer_device = nullptr;
 
 struct AffineMatrix {
   float value[6];
@@ -12,15 +12,16 @@ struct AffineMatrix {
 
 // cuda implementation of openCV cv::warpAffine method
 // performs an affine transformation to the input image
-__global__ void WarpAffineKernel(uint8_t* image_buffer, int image_line_size,
+__global__ void WarpAffineKernel(uint8_t *image_buffer, int image_line_size,
                                  int image_width, int image_height,
-                                 float* destination_image_buffer,
+                                 float *destination_image_buffer,
                                  int processing_image_width,
                                  int processing_image_height,
                                  uint8_t constant_rgb_value,
                                  AffineMatrix invert_scalar, int image_edge) {
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
-  if (thread_id >= image_edge) return;
+  if (thread_id >= image_edge)
+    return;
 
   // get affine transformation
   float rotation_x = invert_scalar.value[0];
@@ -65,10 +66,10 @@ __global__ void WarpAffineKernel(uint8_t* image_buffer, int image_line_size,
 
     float weight_pixel_1 = hy * hx, weight_pixel_2 = hy * lx,
           weight_pixel_3 = ly * hx, weight_pixel_4 = ly * lx;
-    uint8_t* color_pixel_1 = constant_rgb_values;
-    uint8_t* color_pixel_2 = constant_rgb_values;
-    uint8_t* color_pixel_3 = constant_rgb_values;
-    uint8_t* color_pixel_4 = constant_rgb_values;
+    uint8_t *color_pixel_1 = constant_rgb_values;
+    uint8_t *color_pixel_2 = constant_rgb_values;
+    uint8_t *color_pixel_3 = constant_rgb_values;
+    uint8_t *color_pixel_4 = constant_rgb_values;
 
     if (y_low >= 0) {
       if (x_low >= 0)
@@ -113,11 +114,11 @@ __global__ void WarpAffineKernel(uint8_t* image_buffer, int image_line_size,
 
   // rgbrgbrgb to rrrgggbbb
   int image_area = processing_image_width * processing_image_height;
-  float* color_0_pointer = destination_image_buffer +
+  float *color_0_pointer = destination_image_buffer +
                            destination_y * processing_image_width +
                            destination_x;
-  float* color_1_pointer = color_0_pointer + image_area;
-  float* color_2_pointer = color_1_pointer + image_area;
+  float *color_1_pointer = color_0_pointer + image_area;
+  float *color_2_pointer = color_1_pointer + image_area;
   *color_0_pointer = color_0;
   *color_1_pointer = color_1;
   *color_2_pointer = color_2;
@@ -125,8 +126,8 @@ __global__ void WarpAffineKernel(uint8_t* image_buffer, int image_line_size,
 
 // preprocess images by creating the affine tranformation
 // and applying it to the original image by calling warpAffineKernel
-void CudaPreprocess(uint8_t* image, int image_width, int image_height,
-                    float* destination_image_buffer, int processing_image_width,
+void CudaPreprocess(uint8_t *image, int image_width, int image_height,
+                    float *destination_image_buffer, int processing_image_width,
                     int processing_image_height, cudaStream_t stream) {
   int image_size = image_width * image_height * 3;
   // copy data to CPU pinned memory
@@ -169,7 +170,7 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
       128, invert_scalar, jobs);
 }
 
-void CudaPreprocessBatch(std::vector<cv::Mat>* image_batch, float* image_buffer,
+void CudaPreprocessBatch(std::vector<cv::Mat> *image_batch, float *image_buffer,
                          int processing_image_width,
                          int processing_image_height, cudaStream_t stream) {
   int processing_image_size =
@@ -187,10 +188,10 @@ void CudaPreprocessBatch(std::vector<cv::Mat>* image_batch, float* image_buffer,
 
 void CudaPreprocessInit(int max_image_size) {
   // prepare input data in  CPU pinned memory
-  CUDA_CHECK(cudaMallocHost(reinterpret_cast<void**>(&image_buffer_host),
+  CUDA_CHECK(cudaMallocHost(reinterpret_cast<void **>(&image_buffer_host),
                             max_image_size * 3));
   // prepare input data in GPU device memory
-  CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&image_buffer_device),
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&image_buffer_device),
                         max_image_size * 3));
 }
 

@@ -17,14 +17,14 @@
 #ifndef TENSORRT_LOGGING_H
 #define TENSORRT_LOGGING_H
 
-#include <glog/logging.h>
-
 #include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <ostream>
 #include <sstream>
 #include <string>
+
+#include <glog/logging.h>
 
 #include "../include/macros.h"
 #include "NvInferRuntimeCommon.h"
@@ -33,8 +33,8 @@ using Severity = nvinfer1::ILogger::Severity;
 
 class LogStreamConsumerBuffer : public std::stringbuf {
  public:
-  LogStreamConsumerBuffer(std::ostream& stream, const std::string& prefix,
-                          bool shouldLog)
+  LogStreamConsumerBuffer(
+      std::ostream& stream, const std::string& prefix, bool shouldLog)
       : mOutput(stream), mPrefix(prefix), mShouldLog(shouldLog) {}
 
   LogStreamConsumerBuffer(LogStreamConsumerBuffer&& other)
@@ -87,7 +87,9 @@ class LogStreamConsumerBuffer : public std::stringbuf {
     }
   }
 
-  void setShouldLog(bool shouldLog) { mShouldLog = shouldLog; }
+  void setShouldLog(bool shouldLog) {
+    mShouldLog = shouldLog;
+  }
 
  private:
   std::ostream& mOutput;
@@ -102,8 +104,8 @@ class LogStreamConsumerBuffer : public std::stringbuf {
 //!
 class LogStreamConsumerBase {
  public:
-  LogStreamConsumerBase(std::ostream& stream, const std::string& prefix,
-                        bool shouldLog)
+  LogStreamConsumerBase(
+      std::ostream& stream, const std::string& prefix, bool shouldLog)
       : mBuffer(stream, prefix, shouldLog) {}
 
  protected:
@@ -128,18 +130,18 @@ class LogStreamConsumer : protected LogStreamConsumerBase, public std::ostream {
   //!  Reportable severity determines if the messages are severe enough to be
   //!  logged.
   LogStreamConsumer(Severity reportableSeverity, Severity severity)
-      : LogStreamConsumerBase(severityOstream(severity),
-                              severityPrefix(severity),
-                              severity <= reportableSeverity),
+      : LogStreamConsumerBase(
+            severityOstream(severity), severityPrefix(severity),
+            severity <= reportableSeverity),
         std::ostream(&mBuffer)  // links the stream buffer with the stream
         ,
         mShouldLog(severity <= reportableSeverity),
         mSeverity(severity) {}
 
   LogStreamConsumer(LogStreamConsumer&& other)
-      : LogStreamConsumerBase(severityOstream(other.mSeverity),
-                              severityPrefix(other.mSeverity),
-                              other.mShouldLog),
+      : LogStreamConsumerBase(
+            severityOstream(other.mSeverity), severityPrefix(other.mSeverity),
+            other.mShouldLog),
         std::ostream(&mBuffer)  // links the stream buffer with the stream
         ,
         mShouldLog(other.mShouldLog),
@@ -227,7 +229,9 @@ class Logger : public nvinfer1::ILogger {
   //! logger with TensorRT, we can eliminate the inheritance of Logger from
   //! ILogger
   //!
-  nvinfer1::ILogger& getTRTLogger() { return *this; }
+  nvinfer1::ILogger& getTRTLogger() {
+    return *this;
+  }
 
   //!
   //! \brief Implementation of the nvinfer1::ILogger::log() virtual method
@@ -285,8 +289,8 @@ class Logger : public nvinfer1::ILogger {
   //
   //! \return a TestAtom that can be used in Logger::reportTest{Start,End}().
   //!
-  static TestAtom defineTest(const std::string& name,
-                             const std::string& cmdline) {
+  static TestAtom defineTest(
+      const std::string& name, const std::string& cmdline) {
     return TestAtom(false, name, cmdline);
   }
 
@@ -300,8 +304,8 @@ class Logger : public nvinfer1::ILogger {
   //! \param[in] argv The array of command-line arguments (given as C strings)
   //!
   //! \return a TestAtom that can be used in Logger::reportTest{Start,End}().
-  static TestAtom defineTest(const std::string& name, int argc,
-                             char const* const* argv) {
+  static TestAtom defineTest(
+      const std::string& name, int argc, char const* const* argv) {
     auto cmdline = genCmdlineString(argc, argv);
     return defineTest(name, cmdline);
   }
@@ -354,7 +358,9 @@ class Logger : public nvinfer1::ILogger {
     return pass ? reportPass(testAtom) : reportFail(testAtom);
   }
 
-  Severity getReportableSeverity() const { return mReportableSeverity; }
+  Severity getReportableSeverity() const {
+    return mReportableSeverity;
+  }
 
  private:
   //!
@@ -422,7 +428,8 @@ class Logger : public nvinfer1::ILogger {
   static std::string genCmdlineString(int argc, char const* const* argv) {
     std::stringstream ss;
     for (int i = 0; i < argc; i++) {
-      if (i > 0) ss << " ";
+      if (i > 0)
+        ss << " ";
       ss << argv[i];
     }
     return ss.str();
@@ -491,8 +498,8 @@ inline LogStreamConsumer LOG_ERROR(const Logger& logger) {
 //!     LOG_FATAL(logger) << "hello world" << std::endl;
 //!
 inline LogStreamConsumer LOG_FATAL(const Logger& logger) {
-  return LogStreamConsumer(logger.getReportableSeverity(),
-                           Severity::kINTERNAL_ERROR);
+  return LogStreamConsumer(
+      logger.getReportableSeverity(), Severity::kINTERNAL_ERROR);
 }
 
 }  // anonymous namespace

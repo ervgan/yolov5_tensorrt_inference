@@ -5,31 +5,31 @@
  * please re-compile and re-serialize the tensorrt model.
  * --------------------------------------------------------*/
 
-#define USE_FP16  // stensorRT uses FP16
+#define USE_FP16 // stensorRT uses FP16
 
 // These are used to define input/output tensor names,
 // you can set them to whatever you want.
-const static char* kInputTensorName = "data";
-const static char* kOutputTensorName = "prob";
+static const char *kInputTensorName = "data";
+static const char *kOutputTensorName = "prob";
 
 // Detection model' number of classes
-constexpr static int kNumClass = 1;
+static constexpr int kNumClass = 1;
 
-constexpr static int kBatchSize = 1;
+static constexpr int kBatchSize = 1;
 
 // Yolo's input width and height must by divisible by 32
-constexpr static int kInputH = 640;
-constexpr static int kInputW = 640;
+static constexpr int kInputH = 640;
+static constexpr int kInputW = 640;
 
 // Maximum number of output bounding boxes from yololayer plugin.
 // That is maximum number of output bounding boxes before NMS.
-constexpr static int kMaxNumOutputBbox = 1000;
+static constexpr int kMaxNumOutputBbox = 1000;
 
-constexpr static int kNumAnchor = 3;
+static constexpr int kNumAnchor = 3;
 
 // The bboxes whose confidence is lower than kIgnoreThresh will be ignored in
 // yololayer plugin.
-constexpr static float kIgnoreThresh = 0.1f;
+static constexpr float kIgnoreThresh = 0.1f;
 
 /* --------------------------------------------------------
  * These configs are NOT related to tensorrt model, if these are changed,
@@ -37,10 +37,10 @@ constexpr static float kIgnoreThresh = 0.1f;
  * --------------------------------------------------------*/
 
 // NMS overlapping thresh and final detection confidence thresh
-const static float kNmsThresh = 0.45f;
-const static float kConfThresh = 0.5f;
+static const float kNmsThresh = 0.45f;
+static const float kConfThresh = 0.5f;
 
-const static int kGpuId = 0;
+static const int kGpuId = 0;
 
 // If your image size is larger than 4096 * 3112, please increase this value
-const static int kMaxInputImageSize = 4096 * 3112;
+static const int kMaxInputImageSize = 4096 * 3112;

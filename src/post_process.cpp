@@ -17,8 +17,9 @@ float intersection_over_union(float first_box[4], float second_box[4]) {
   };
 
   if (intersection_box[2] > intersection_box[3] ||
-      intersection_box[0] > intersection_box[1])
+      intersection_box[0] > intersection_box[1]) {
     return 0.0f;
+  }
 
   float intersection_box_area = (intersection_box[1] - intersection_box[0]) *
                                 (intersection_box[3] - intersection_box[2]);
@@ -27,8 +28,8 @@ float intersection_over_union(float first_box[4], float second_box[4]) {
           intersection_box_area);
 }
 
-bool compare(const Detection& first_detection,
-             const Detection& second_detection) {
+bool compare(const Detection &first_detection,
+             const Detection &second_detection) {
   return first_detection.confidence > second_detection.confidence;
 }
 
@@ -47,7 +48,7 @@ cv::Rect ScaleRectangle(float bounding_box[4], float scale) {
 
 }  // namespace
 
-cv::Rect CreateRectangle(const cv::Mat& image, float bounding_box[4]) {
+cv::Rect CreateRectangle(const cv::Mat &image, float bounding_box[4]) {
   float rectangle_top_left_x, rectangle_bottom_right_x, rectangle_top_left_y,
       rectangle_bottom_right_y;
   const float width_ratio = kInputW / (image.cols * 1.0);
@@ -64,6 +65,7 @@ cv::Rect CreateRectangle(const cv::Mat& image, float bounding_box[4]) {
     rectangle_bottom_right_x = rectangle_bottom_right_x / width_ratio;
     rectangle_top_left_y = rectangle_top_left_y / width_ratio;
     rectangle_bottom_right_y = rectangle_bottom_right_y / width_ratio;
+
   } else {
     rectangle_top_left_x = bounding_box[0] - bounding_box[2] / 2.f -
                            (kInputW - height_ratio * image.cols) / 2;
@@ -84,7 +86,7 @@ cv::Rect CreateRectangle(const cv::Mat& image, float bounding_box[4]) {
 
 // uses intersection_over_union to delete duplicate bounding boxes
 // for the same detection
-void ApplyNonMaxSuppresion(std::vector<Detection>* results, float* output,
+void ApplyNonMaxSuppresion(std::vector<Detection> *results, float *output,
                            float confidence_thresh, float nms_thresh) {
   int detection_size = sizeof(Detection) / sizeof(float);
   std::map<float, std::vector<Detection>> detection_map;
@@ -92,23 +94,27 @@ void ApplyNonMaxSuppresion(std::vector<Detection>* results, float* output,
   for (int i = 0; i < output[0] && i < kMaxNumOutputBbox; i++) {
     // deletes all boxes with confidence less than confidence threshold
     // set to 0.1 in config.h
-    if (output[1 + detection_size * i + 4] <= confidence_thresh) continue;
+    if (output[1 + detection_size * i + 4] <= confidence_thresh) {
+      continue;
+    }
 
     Detection detection;
     memcpy(&detection, &output[1 + detection_size * i],
            detection_size * sizeof(float));
 
-    if (detection_map.count(detection.class_id) == 0)
+    if (detection_map.count(detection.class_id) == 0) {
       detection_map.emplace(detection.class_id, std::vector<Detection>());
+    }
 
     detection_map[detection.class_id].push_back(detection);
   }
+
   for (auto it = detection_map.begin(); it != detection_map.end(); it++) {
-    auto& detections = it->second;
+    auto &detections = it->second;
     std::sort(detections.begin(), detections.end(), compare);
 
     for (size_t i = 0; i < detections.size(); ++i) {
-      auto& item = detections[i];
+      auto &item = detections[i];
       results->push_back(item);
 
       for (size_t n = i + 1; n < detections.size(); ++n) {
@@ -123,20 +129,21 @@ void ApplyNonMaxSuppresion(std::vector<Detection>* results, float* output,
 }
 
 void ApplyBatchNonMaxSuppression(
-    std::vector<std::vector<Detection>>* result_batch, float* output,
+    std::vector<std::vector<Detection>> *result_batch, float *output,
     int batch_size, int output_size, float confidence_thresh,
     float nms_thresh) {
   result_batch->resize(batch_size);
+
   for (int i = 0; i < batch_size; i++) {
     ApplyNonMaxSuppresion(&(*result_batch)[i], &output[i * output_size],
                           confidence_thresh, nms_thresh);
   }
 }
 
-void DrawBox(const std::vector<cv::Mat>& image_batch,
-             std::vector<std::vector<Detection>>* result_batch) {
+void DrawBox(const std::vector<cv::Mat> &image_batch,
+             std::vector<std::vector<Detection>> *result_batch) {
   for (size_t i = 0; i < image_batch.size(); i++) {
-    std::vector<Detection>& result = (*result_batch)[i];
+    std::vector<Detection> &result = (*result_batch)[i];
     cv::Mat image = image_batch[i];
 
     for (size_t j = 0; j < result.size(); j++) {
@@ -145,7 +152,7 @@ void DrawBox(const std::vector<cv::Mat>& image_batch,
       int rounded_confidence =
           static_cast<int>(std::round(result[j].confidence * 100));
       float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
-      cv::putText(image, std::to_string(result_confidence).substr(0, 3),
+      cv::putText(image, std::to_string(result_confidence).substr(0, 4),
                   cv::Point(rectangle.x, rectangle.y - 1),
                   cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
     }

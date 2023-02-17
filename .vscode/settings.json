@@ -50,6 +50,8 @@
     "new": "cpp",
     "stdexcept": "cpp",
     "typeinfo": "cpp",
-    "cassert": "cpp"
+    "cassert": "cpp",
+    "bitset": "cpp",
+    "typeindex": "cpp"
   }
 }
