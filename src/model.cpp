@@ -88,16 +88,17 @@ int get_depth(int depth, const float depth_multiplier) {
 // returns normalized layer
 IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
                             std::map<std::string, Weights> *weight_map,
-                            const ITensor &input, const std::string &layer_name,
+                            ITensor *input, const std::string &layer_name,
                             float eps) {
-  float *gamma =
-      reinterpret_cast<float *>((*weight_map)[layer_name + ".weight"].values);
-  float *beta =
-      reinterpret_cast<float *>((*weight_map)[layer_name + ".bias"].values);
-  float *mean = reinterpret_cast<float *>(
+  const float *gamma = reinterpret_cast<const float *>(
+      (*weight_map)[layer_name + ".weight"].values);
+  const float *beta = reinterpret_cast<const float *>(
+      (*weight_map)[layer_name + ".bias"].values);
+  const float *mean = reinterpret_cast<const float *>(
       (*weight_map)[layer_name + ".running_mean"].values);
-  float *var = reinterpret_cast<float *>(
+  const float *var = reinterpret_cast<const float *>(
       (*weight_map)[layer_name + ".running_var"].values);
+
   const int kLen = (*weight_map)[layer_name + ".running_var"].count;
 
   float *scale_values = reinterpret_cast<float *>(malloc(sizeof(float) * kLen));
@@ -129,7 +130,7 @@ IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
   (*weight_map)[layer_name + ".power"] = power;
 
   IScaleLayer *scale_layer =
-      network->addScale(input, ScaleMode::kCHANNEL, shift, scale, power);
+      network->addScale(*input, ScaleMode::kCHANNEL, shift, scale, power);
   CHECK_NOTNULL(scale_layer);
   return scale_layer;
 }
@@ -137,13 +138,13 @@ IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
 // returns a single TensorRT layer
 ILayer *CreateConvoLayer(INetworkDefinition *network,
                          std::map<std::string, Weights> *weight_map,
-                         const ITensor &input, int output, int kernel_size,
+                         ITensor *input, int output, int kernel_size,
                          int stride, int nb_groups,
                          const std::string &layer_name) {
   Weights empty_wts{DataType::kFLOAT, nullptr, 0};
   const int kPadding = kernel_size / 3;
   IConvolutionLayer *convo_layer = network->addConvolutionNd(
-      input, output, DimsHW{kernel_size, kernel_size},
+      *input, output, DimsHW{kernel_size, kernel_size},
       (*weight_map)[layer_name + ".conv.weight"], empty_wts);
 
   CHECK_NOTNULL(convo_layer);
@@ -152,9 +153,8 @@ ILayer *CreateConvoLayer(INetworkDefinition *network,
   convo_layer->setPaddingNd(DimsHW{kPadding, kPadding});
   convo_layer->setNbGroups(nb_groups);
   convo_layer->setName((layer_name + ".conv").c_str());
-  IScaleLayer *batch_norm_layer =
-      AddBatchNorm2D(network, weight_map, *convo_layer->getOutput(0),
-                     layer_name + ".bn", 1e-3);
+  IScaleLayer *batch_norm_layer = AddBatchNorm2D(
+      network, weight_map, convo_layer->getOutput(0), layer_name + ".bn", 1e-3);
 
   // using silu activation method = input * sigmoid
   auto sigmoid_activation = network->addActivation(
@@ -170,7 +170,7 @@ ILayer *CreateConvoLayer(INetworkDefinition *network,
 // Creates Bottleneck Layer
 ILayer *CreateBottleneckLayer(INetworkDefinition *network,
                               std::map<std::string, Weights> *weight_map,
-                              const ITensor &input, int intput_channel,
+                              ITensor *input, int intput_channel,
                               int output_channel, bool shortcut, int nb_groups,
                               float expansion, const std::string &layer_name) {
   const int kOutputMaps1 = static_cast<int>((float)output_channel * expansion);
@@ -185,12 +185,12 @@ ILayer *CreateBottleneckLayer(INetworkDefinition *network,
                        kStride1, kNbGroups1, layer_name + ".cv1");
 
   auto convo_layer_2 = CreateConvoLayer(
-      network, weight_map, *convo_layer_1->getOutput(0), output_channel,
+      network, weight_map, convo_layer_1->getOutput(0), output_channel,
       kKernelSize2, kStride2, nb_groups, layer_name + ".cv2");
 
   if (shortcut && intput_channel == output_channel) {
     auto element_wise_layer = network->addElementWise(
-        input, *convo_layer_2->getOutput(0), ElementWiseOperation::kSUM);
+        *input, *convo_layer_2->getOutput(0), ElementWiseOperation::kSUM);
     return element_wise_layer;
   }
 
@@ -201,7 +201,7 @@ ILayer *CreateBottleneckLayer(INetworkDefinition *network,
 // to extract multi-scale features
 ILayer *CreateC3Bottleneck(INetworkDefinition *network,
                            std::map<std::string, Weights> *weight_map,
-                           const ITensor &input, int input_channel,
+                           ITensor *input, int input_channel,
                            int output_channel, int n, bool shortcut,
                            int nb_groups, float expansion,
                            const std::string &layer_name) {
@@ -216,7 +216,7 @@ ILayer *CreateC3Bottleneck(INetworkDefinition *network,
   ITensor *y1 = convo_layer_1->getOutput(0);
 
   for (int i = 0; i < n; i++) {
-    auto b = CreateBottleneckLayer(network, weight_map, *y1, hidden_channel,
+    auto b = CreateBottleneckLayer(network, weight_map, y1, hidden_channel,
                                    hidden_channel, shortcut, nb_groups, 1.0,
                                    layer_name + ".m." + std::to_string(i));
     y1 = b->getOutput(0);
@@ -226,7 +226,7 @@ ILayer *CreateC3Bottleneck(INetworkDefinition *network,
   auto cat = network->addConcatenation(inputTensors, 2);
 
   auto convo_layer_3 =
-      CreateConvoLayer(network, weight_map, *cat->getOutput(0), output_channel,
+      CreateConvoLayer(network, weight_map, cat->getOutput(0), output_channel,
                        1, 1, 1, layer_name + ".cv3");
   return convo_layer_3;
 }
@@ -235,9 +235,8 @@ ILayer *CreateC3Bottleneck(INetworkDefinition *network,
 // with less FLOPs
 ILayer *CreateSPPFLayer(INetworkDefinition *network,
                         std::map<std::string, Weights> *weight_map,
-                        const ITensor &input, int input_channel,
-                        int output_channel, int dimensions,
-                        std::string layer_name) {
+                        ITensor *input, int input_channel, int output_channel,
+                        int dimensions, std::string layer_name) {
   int hidden_channels = input_channel / 2;
 
   auto convo_layer_1 =
@@ -266,7 +265,7 @@ ILayer *CreateSPPFLayer(INetworkDefinition *network,
   auto concatenation_layer = network->addConcatenation(inputTensors, 4);
 
   auto convo_layer_2 =
-      CreateConvoLayer(network, weight_map, *concatenation_layer->getOutput(0),
+      CreateConvoLayer(network, weight_map, concatenation_layer->getOutput(0),
                        output_channel, 1, 1, 1, layer_name + ".cv2");
   return convo_layer_2;
 }
@@ -295,7 +294,7 @@ IPluginV2Layer *AddYoLoLayer(INetworkDefinition *network,
   auto anchors = getAnchors(weight_map, layer_name);
   PluginField plugin_fields[2];
   int netinfo[5] = {kNumClass, kInputW, kInputH, kMaxNumOutputBbox,
-                    static_cast<int> is_segmentation};
+                    static_cast<int> (is_segmentation};
   plugin_fields[0].data = netinfo;
   plugin_fields[0].length = 5;
   plugin_fields[0].name = "netinfo";
@@ -354,53 +353,53 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
 
   // Backbone layers
   auto convo_layer_0 =
-      CreateConvoLayer(network, &weight_map, *data,
+      CreateConvoLayer(network, &weight_map, data,
                        get_width(64, width_multiplier), 6, 2, 1, "model.0");
   CHECK_NOTNULL(convo_layer_0);
   auto convo_layer_1 =
-      CreateConvoLayer(network, &weight_map, *convo_layer_0->getOutput(0),
+      CreateConvoLayer(network, &weight_map, convo_layer_0->getOutput(0),
                        get_width(128, width_multiplier), 3, 2, 1, "model.1");
 
   auto bottleneck_layer_2 = CreateC3Bottleneck(
-      network, &weight_map, *convo_layer_1->getOutput(0),
+      network, &weight_map, convo_layer_1->getOutput(0),
       get_width(128, width_multiplier), get_width(128, width_multiplier),
       get_depth(3, depth_multiplier), true, 1, 0.5, "model.2");
 
   auto convo_layer_3 =
-      CreateConvoLayer(network, &weight_map, *bottleneck_layer_2->getOutput(0),
+      CreateConvoLayer(network, &weight_map, bottleneck_layer_2->getOutput(0),
                        get_width(256, width_multiplier), 3, 2, 1, "model.3");
 
   auto bottleneck_layer_4 = CreateC3Bottleneck(
-      network, &weight_map, *convo_layer_3->getOutput(0),
+      network, &weight_map, convo_layer_3->getOutput(0),
       get_width(256, width_multiplier), get_width(256, width_multiplier),
       get_depth(6, depth_multiplier), true, 1, 0.5, "model.4");
 
   auto convo_layer_5 =
-      CreateConvoLayer(network, &weight_map, *bottleneck_layer_4->getOutput(0),
+      CreateConvoLayer(network, &weight_map, bottleneck_layer_4->getOutput(0),
                        get_width(512, width_multiplier), 3, 2, 1, "model.5");
 
   auto bottleneck_layer_6 = CreateC3Bottleneck(
-      network, &weight_map, *convo_layer_5->getOutput(0),
+      network, &weight_map, convo_layer_5->getOutput(0),
       get_width(512, width_multiplier), get_width(512, width_multiplier),
       get_depth(9, depth_multiplier), true, 1, 0.5, "model.6");
 
   auto convo_layer_7 =
-      CreateConvoLayer(network, &weight_map, *bottleneck_layer_6->getOutput(0),
+      CreateConvoLayer(network, &weight_map, bottleneck_layer_6->getOutput(0),
                        get_width(1024, width_multiplier), 3, 2, 1, "model.7");
 
   auto bottleneck_layer_8 = CreateC3Bottleneck(
-      network, &weight_map, *convo_layer_7->getOutput(0),
+      network, &weight_map, convo_layer_7->getOutput(0),
       get_width(1024, width_multiplier), get_width(1024, width_multiplier),
       get_depth(3, depth_multiplier), true, 1, 0.5, "model.8");
 
   auto spp_layer_9 =
-      CreateSPPFLayer(network, &weight_map, *bottleneck_layer_8->getOutput(0),
+      CreateSPPFLayer(network, &weight_map, bottleneck_layer_8->getOutput(0),
                       get_width(1024, width_multiplier),
                       get_width(1024, width_multiplier), 5, "model.9");
 
   // Head layer
   auto convo_layer_10 =
-      CreateConvoLayer(network, &weight_map, *spp_layer_9->getOutput(0),
+      CreateConvoLayer(network, &weight_map, spp_layer_9->getOutput(0),
                        get_width(512, width_multiplier), 1, 1, 1, "model.10");
 
   // Layer increasing spatial resolution of image
@@ -417,12 +416,12 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
       network->addConcatenation(input_tensors_layer_12, 2);
 
   auto bottleneck_layer_13 = CreateC3Bottleneck(
-      network, &weight_map, *concatenation_layer_12->getOutput(0),
+      network, &weight_map, concatenation_layer_12->getOutput(0),
       get_width(1024, width_multiplier), get_width(512, width_multiplier),
       get_depth(3, depth_multiplier), false, 1, 0.5, "model.13");
 
   auto convo_layer_14 =
-      CreateConvoLayer(network, &weight_map, *bottleneck_layer_13->getOutput(0),
+      CreateConvoLayer(network, &weight_map, bottleneck_layer_13->getOutput(0),
                        get_width(256, width_multiplier), 1, 1, 1, "model.14");
 
   auto upsample_layer_15 = network->addResize(*convo_layer_14->getOutput(0));
@@ -437,7 +436,7 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
       network->addConcatenation(input_tensors_layer_16, 2);
 
   auto bottleneck_layer_17 = CreateC3Bottleneck(
-      network, &weight_map, *concatenation_layer_16->getOutput(0),
+      network, &weight_map, concatenation_layer_16->getOutput(0),
       get_width(512, width_multiplier), get_width(256, width_multiplier),
       get_depth(3, depth_multiplier), false, 1, 0.5, "model.17");
 
@@ -447,7 +446,7 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
       weight_map["model.24.m.0.weight"], weight_map["model.24.m.0.bias"]);
 
   auto convo_layer_18 =
-      CreateConvoLayer(network, &weight_map, *bottleneck_layer_17->getOutput(0),
+      CreateConvoLayer(network, &weight_map, bottleneck_layer_17->getOutput(0),
                        get_width(256, width_multiplier), 3, 2, 1, "model.18");
 
   ITensor *input_tensors_layer_19[] = {convo_layer_18->getOutput(0),
@@ -455,7 +454,7 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
   auto cat19 = network->addConcatenation(input_tensors_layer_19, 2);
 
   auto bottleneck_layer_20 = CreateC3Bottleneck(
-      network, &weight_map, *cat19->getOutput(0),
+      network, &weight_map, cat19->getOutput(0),
       get_width(512, width_multiplier), get_width(512, width_multiplier),
       get_depth(3, depth_multiplier), false, 1, 0.5, "model.20");
 
@@ -464,7 +463,7 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
       weight_map["model.24.m.1.weight"], weight_map["model.24.m.1.bias"]);
 
   auto convo_layer_21 =
-      CreateConvoLayer(network, &weight_map, *bottleneck_layer_20->getOutput(0),
+      CreateConvoLayer(network, &weight_map, bottleneck_layer_20->getOutput(0),
                        get_width(512, width_multiplier), 3, 2, 1, "model.21");
 
   ITensor *input_tensors_layer_22[] = {convo_layer_21->getOutput(0),
@@ -474,7 +473,7 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
       network->addConcatenation(input_tensors_layer_22, 2);
 
   auto bottleneck_layer_23 = CreateC3Bottleneck(
-      network, &weight_map, *concatenation_layer_22->getOutput(0),
+      network, &weight_map, concatenation_layer_22->getOutput(0),
       get_width(1024, width_multiplier), get_width(1024, width_multiplier),
       get_depth(3, depth_multiplier), false, 1, 0.5, "model.23");
 
@@ -504,7 +503,7 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
 
   // Release host memory
   for (auto &mem : weight_map) {
-    free(reinterpret_cast<void *>(mem.second.values));
+    free(const_cast<void *>(mem.second.values));
   }
 
   return engine;
