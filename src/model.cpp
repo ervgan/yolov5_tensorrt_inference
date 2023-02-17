@@ -173,7 +173,8 @@ ILayer *CreateBottleneckLayer(INetworkDefinition *network,
                               ITensor *input, int intput_channel,
                               int output_channel, bool shortcut, int nb_groups,
                               float expansion, const std::string &layer_name) {
-  const int kOutputMaps1 = static_cast<int>((float)output_channel * expansion);
+  const int kOutputMaps1 =
+      static_cast<int>(static_cast<float>(output_channel) * expansion);
   const int kKernelSize1 = 1;
   const int kStride1 = 1;
   const int kNbGroups1 = 1;
@@ -205,7 +206,8 @@ ILayer *CreateC3Bottleneck(INetworkDefinition *network,
                            int output_channel, int n, bool shortcut,
                            int nb_groups, float expansion,
                            const std::string &layer_name) {
-  int hidden_channel = static_cast<int>((float)output_channel * expansion);
+  int hidden_channel =
+      static_cast<int>(static_cast<float> output_channel * expansion);
 
   auto convo_layer_1 = CreateConvoLayer(
       network, weight_map, input, hidden_channel, 1, 1, 1, layer_name + ".cv1");
