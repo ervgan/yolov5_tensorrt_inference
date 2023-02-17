@@ -7,13 +7,13 @@ namespace {
 float intersection_over_union(float first_box[4], float second_box[4]) {
   float intersection_box[] = {
       (std::max)(first_box[0] - first_box[2] / 2.f,
-                 second_box[0] - second_box[2] / 2.f),  // left
+                 second_box[0] - second_box[2] / 2.f), // left
       (std::min)(first_box[0] + first_box[2] / 2.f,
-                 second_box[0] + second_box[2] / 2.f),  // right
+                 second_box[0] + second_box[2] / 2.f), // right
       (std::max)(first_box[1] - first_box[3] / 2.f,
-                 second_box[1] - second_box[3] / 2.f),  // top
+                 second_box[1] - second_box[3] / 2.f), // top
       (std::min)(first_box[1] + first_box[3] / 2.f,
-                 second_box[1] + second_box[3] / 2.f),  // bottom
+                 second_box[1] + second_box[3] / 2.f), // bottom
   };
 
   if (intersection_box[2] > intersection_box[3] ||
@@ -46,7 +46,7 @@ cv::Rect ScaleRectangle(float bounding_box[4], float scale) {
                   round(bottom - top));
 }
 
-}  // namespace
+} // namespace
 
 cv::Rect CreateRectangle(const cv::Mat &image, float bounding_box[4]) {
   float rectangle_top_left_x, rectangle_bottom_right_x, rectangle_top_left_y,

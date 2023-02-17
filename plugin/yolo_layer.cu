@@ -10,18 +10,16 @@
 // to customize according to the yolo specifications
 
 namespace Tn {
-template <typename T>
-void write(char **buffer, const T &value) {
+template <typename T> void write(char **buffer, const T &value) {
   **reinterpret_cast<T **>(buffer) = value;
   *buffer += sizeof(T);
 }
 
-template <typename T>
-void read(const char **buffer, T *value) {
+template <typename T> void read(const char **buffer, T *value) {
   *value = **reinterpret_cast<const T **>(buffer);
   *buffer += sizeof(T);
 }
-}  // namespace Tn
+} // namespace Tn
 
 namespace nvinfer1 {
 YoloLayerPlugin::YoloLayerPlugin(int class_count, int neural_net_width,
@@ -127,9 +125,10 @@ const char *YoloLayerPlugin::getPluginNamespace() const TRT_NOEXCEPT {
 }
 
 // Return the DataType of the plugin output at the requested index
-DataType YoloLayerPlugin::getOutputDataType(
-    int index, const nvinfer1::DataType *input_types,
-    int nb_inputs) const TRT_NOEXCEPT {
+DataType
+YoloLayerPlugin::getOutputDataType(int index,
+                                   const nvinfer1::DataType *input_types,
+                                   int nb_inputs) const TRT_NOEXCEPT {
   return DataType::kFLOAT;
 }
 
@@ -200,13 +199,15 @@ __global__ void CallDetection(const float *input, float *output,
   // blockDim.x represents the number of threads in a block
   // blockIdx.x represents the block id within a grid
   int thread_id = threadIdx.x + blockDim.x * blockIdx.x;
-  if (thread_id >= nb_elements) return;
+  if (thread_id >= nb_elements)
+    return;
 
   int total_grid = yolo_width * yolo_height;
   int batch_normalization_thread_id = thread_id / total_grid;
   thread_id = thread_id - total_grid * batch_normalization_thread_id;
   int info_len_i = 5 + classes;
-  if (is_segmentation) info_len_i += 32;
+  if (is_segmentation)
+    info_len_i += 32;
   const float *current_input =
       input +
       batch_normalization_thread_id * (info_len_i * total_grid * kNumAnchor);
@@ -215,7 +216,8 @@ __global__ void CallDetection(const float *input, float *output,
     float box_prob =
         LogisticFunction(current_input[thread_id + k * info_len_i * total_grid +
                                        4 * total_grid]);
-    if (box_prob < kIgnoreThresh) continue;
+    if (box_prob < kIgnoreThresh)
+      continue;
     int class_id = 0;
     float max_cls_prob = 0.0;
     for (int i = 5; i < 5 + classes; ++i) {
@@ -232,7 +234,8 @@ __global__ void CallDetection(const float *input, float *output,
     // atomic add is a cuda specific method allowing for value addition
     // in a thread safe manner without race conditions
     int count = static_cast<int>(atomicAdd(result_count, 1));
-    if (count >= max_output_object) return;
+    if (count >= max_output_object)
+      return;
     char *data = reinterpret_cast<char *>(result_count) + sizeof(float) +
                  count * sizeof(Detection);
     Detection *detection = reinterpret_cast<Detection *>(data);
@@ -289,7 +292,8 @@ void YoloLayerPlugin::ForwardGpu(const float *const *inputs, float *output,
   for (unsigned int i = 0; i < yolo_kernel_.size(); ++i) {
     const auto &yolo = yolo_kernel_[i];
     num_element = yolo.width * yolo.height * batch_size;
-    if (num_element < thread_count_) thread_count_ = num_element;
+    if (num_element < thread_count_)
+      thread_count_ = num_element;
 
     CallDetection<<<(num_element + thread_count_ - 1) / thread_count_,
                     thread_count_, 0, stream>>>(
@@ -351,9 +355,9 @@ IPluginV2IOExt *YoloPluginCreator::createPlugin(
   return plugin_object;
 }
 
-IPluginV2IOExt *YoloPluginCreator::deserializePlugin(
-    const char *name, const void *serial_data,
-    size_t serial_length) TRT_NOEXCEPT {
+IPluginV2IOExt *
+YoloPluginCreator::deserializePlugin(const char *name, const void *serial_data,
+                                     size_t serial_length) TRT_NOEXCEPT {
   // This object will be deleted when the network is destroyed, which will
   // call YoloLayerPlugin::destroy()
   YoloLayerPlugin *plugin_object =
@@ -361,4 +365,4 @@ IPluginV2IOExt *YoloPluginCreator::deserializePlugin(
   plugin_object->setPluginNamespace(namespace_.c_str());
   return plugin_object;
 }
-}  // namespace nvinfer1
+} // namespace nvinfer1
