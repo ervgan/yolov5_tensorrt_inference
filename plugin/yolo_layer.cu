@@ -340,7 +340,7 @@ IPluginV2IOExt *YoloPluginCreator::createPlugin(
   int input_width = neural_net_info[1];
   int input_height = neural_net_info[2];
   int max_output_object_count = neural_net_info[3];
-  bool is_segmentation = static_cast<bool> neural_net_info[4];
+  bool is_segmentation = static_cast<bool>(neural_net_info[4]);
   std::vector<YoloKernel> kernels(plugin_fields->fields[1].length);
   memcpy(&kernels[0], plugin_fields->fields[1].data,
          kernels.size() * sizeof(YoloKernel));
