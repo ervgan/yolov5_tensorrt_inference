@@ -293,8 +293,9 @@ IPluginV2Layer *AddYoLoLayer(INetworkDefinition *network,
   auto creator = getPluginRegistry()->getPluginCreator("YoloLayer_TRT", "1");
   auto anchors = getAnchors(weight_map, layer_name);
   PluginField plugin_fields[2];
-  int netinfo[5] = {kNumClass, kInputW, kInputH, kMaxNumOutputBbox,
-                    static_cast<int> (is_segmentation};
+  int netinfo[5] = {
+    kNumClass, kInputW, kInputH, kMaxNumOutputBbox,
+    static_cast<int>(is_segmentation);
   plugin_fields[0].data = netinfo;
   plugin_fields[0].length = 5;
   plugin_fields[0].name = "netinfo";
