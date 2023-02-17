@@ -184,7 +184,7 @@ IPluginV2IOExt *YoloLayerPlugin::clone() const TRT_NOEXCEPT {
 // function and executed on the GPU
 __device__ float LogisticFunction(float data) {
   return 1.0f / (1.0f + expf(-data));
-};
+}
 
 // cuda specific function executed on the GPU and can be called from
 // the host CPU, runs across multiple threads
@@ -231,11 +231,11 @@ __global__ void CallDetection(const float *input, float *output,
         output + batch_normalization_thread_id * output_element;
     // atomic add is a cuda specific method allowing for value addition
     // in a thread safe manner without race conditions
-    int count = (int)atomicAdd(result_count, 1);
+    int count = static_cast<int>(atomicAdd(result_count, 1));
     if (count >= max_output_object) return;
-    char *data =
-        (char *)result_count + sizeof(float) + count * sizeof(Detection);
-    Detection *detection = (Detection *)(data);
+    char *data = reinterpret_cast<char *>(result_count + sizeof(float) +
+                                          count * sizeof(Detection));
+    Detection *detection = reinterpret_cast<Detection *>(data);
 
     int row = thread_id / yolo_width;
     int col = thread_id % yolo_width;
@@ -294,16 +294,17 @@ void YoloLayerPlugin::ForwardGpu(const float *const *inputs, float *output,
     CallDetection<<<(num_element + thread_count_ - 1) / thread_count_,
                     thread_count_, 0, stream>>>(
         inputs[i], output, num_element, yolov5_net_width_, yolov5_net_height_,
-        max_output_object_, yolo.width, yolo.height, (float *)anchor_[i],
-        class_count_, output_element, is_segmentation_);
+        max_output_object_, yolo.width, yolo.height,
+        reinterpret_cast<float *>(anchor_[i]), class_count_, output_element,
+        is_segmentation_);
   }
 }
 
 int YoloLayerPlugin::enqueue(int batch_size, const void *const *inputs,
                              void *TRT_CONST_ENQUEUE *outputs, void *workspace,
                              cudaStream_t stream) TRT_NOEXCEPT {
-  ForwardGpu((const float *const *)inputs, (float *)outputs[0], stream,
-             batch_size);
+  ForwardGpu((const float *const *)inputs,
+             reinterpret_cast<float *>(outputs[0]), stream, batch_size);
   return 0;
 }
 
