@@ -25,6 +25,7 @@ using nvinfer1::ICudaEngine;
 using nvinfer1::IExecutionContext;
 // // Factory object ot create a ICudaEngine object from serialized .engine
 // files
+using nvinfer1::createInferRuntime;
 using nvinfer1::IRuntime;
 // Creates and optimizes TensorRT networks (input, output tensors)
 // used to create a TensorRTengine from a network definition
@@ -44,52 +45,51 @@ const int kOutputSize =
 
 namespace {
 
-bool ParseArgs(int argc, char **argv, std::string &wts_file,
-               std::string &engine_file, float &depth_multiple,
-               float &width_multiple, std::string &image_directory) {
+bool ParseArgs(int argc, char **argv, std::string *wts_file,
+               std::string *engine_file, float *depth_multiple,
+               float *width_multiple, std::string *image_directory) {
   if (argc < 4) {
     return false;
   }
 
   if (std::string(argv[1]) == "-s" && (argc == 5 || argc == 7)) {
-    wts_file = std::string(argv[2]);
-    engine_file = std::string(argv[3]);
+    *wts_file = std::string(argv[2]);
+    *engine_file = std::string(argv[3]);
     auto net = std::string(argv[4]);
 
     // the following model width and depth multiples
     // are defined in the yolov5.yaml files in the yolo repo
     if (net[0] == 'n') {
-      depth_multiple = 0.33;
-      width_multiple = 0.25;
+      *depth_multiple = 0.33;
+      *width_multiple = 0.25;
 
     } else if (net[0] == 's') {
-      depth_multiple = 0.33;
-      width_multiple = 0.50;
+      *depth_multiple = 0.33;
+      *width_multiple = 0.50;
 
     } else if (net[0] == 'm') {
-      depth_multiple = 0.67;
-      width_multiple = 0.75;
+      *depth_multiple = 0.67;
+      *width_multiple = 0.75;
 
     } else if (net[0] == 'l') {
-      depth_multiple = 1.0;
-      width_multiple = 1.0;
+      *depth_multiple = 1.0;
+      *width_multiple = 1.0;
 
     } else if (net[0] == 'x') {
-      depth_multiple = 1.33;
-      width_multiple = 1.25;
+      *depth_multiple = 1.33;
+      *width_multiple = 1.25;
 
     } else if (net[0] == 'c' && argc == 7) {
-      depth_multiple = atof(argv[5]);
-      width_multiple = atof(argv[6]);
+      *depth_multiple = atof(argv[5]);
+      *width_multiple = atof(argv[6]);
 
     } else {
       return false;
     }
 
   } else if (std::string(argv[1]) == "-d" && argc == 4) {
-    engine_file = std::string(argv[2]);
-    image_directory = std::string(argv[3]);
-
+    *engine_file = std::string(argv[2]);
+    *image_directory = std::string(argv[3]);
   } else {
     return false;
   }
@@ -119,7 +119,7 @@ int ReadDirFiles(const char *directory_name,
   return 0;
 }
 
-}  // namespace
+}  //  namespace
 
 YoloDetector::YoloDetector() {}
 
@@ -139,7 +139,7 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
                                         float **gpu_input_buffer,
                                         float **gpu_output_buffer,
                                         float **cpu_output_buffer) {
-  CHECK(engine->getNbBindings() == 2);
+  CHECK_EQ(engine->getNbBindings(), 2);
   // In order to bind the buffers, we need to know the names of the input and
   // output tensors. Note that indices are guaranteed to be less than
   // IEngine::getNbBindings()
@@ -148,9 +148,9 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
   CHECK_EQ(kInputIndex, 0);
   CHECK_EQ(kOutputIndex, 1);
   // Create GPU buffers on device
-  CUDA_CHECK(cudaMalloc((void **)gpu_input_buffer,
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(gpu_input_buffer),
                         kBatchSize * 3 * kInputH * kInputW * sizeof(float)));
-  CUDA_CHECK(cudaMalloc((void **)gpu_output_buffer,
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(gpu_output_buffer),
                         kBatchSize * kOutputSize * sizeof(float)));
 
   *cpu_output_buffer = new float[kBatchSize * kOutputSize];
@@ -241,8 +241,8 @@ void YoloDetector::DeserializeEngine(const std::string &engine_file,
 
 int YoloDetector::Init(int argc, char **argv) {
   // sets parameters
-  if (!ParseArgs(argc, argv, wts_file_, engine_file_, depth_multiple_,
-                 width_multiple_, image_directory_)) {
+  if (!ParseArgs(argc, argv, &wts_file_, &engine_file_, &depth_multiple_,
+                 &width_multiple_, &image_directory_)) {
     std::cerr << "arguments not right!" << std::endl;
     std::cerr << "./yolov5_det -s [.wts_file] [.engine_file] [n/s/m/l/x "
                  "or c depth_multiple width_multiple]  // serialize model to "
@@ -301,8 +301,8 @@ void YoloDetector::DrawDetections() {
                         stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();
-    RunInference(context_, stream_, (void **)gpu_buffers_, cpu_output_buffer_,
-                 kBatchSize);
+    RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
+                 cpu_output_buffer_, kBatchSize);
     auto end = std::chrono::system_clock::now();
     std::cout << "inference time: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end -
