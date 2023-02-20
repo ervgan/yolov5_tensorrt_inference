@@ -26,6 +26,17 @@ using nvinfer1::IExecutionContext;
 // // Factory object ot create a ICudaEngine object from serialized .engine
 // files
 using nvinfer1::IRuntime;
+// Creates and optimizes TensorRT networks (input, output tensors)
+// used to create a TensorRTengine from a network definition
+using nvinfer1::createInferBuilder;
+using nvinfer1::IBuilder;
+// Settings for IBuilder (max batch size, etc)
+using nvinfer1::IBuilderConfig;
+// host-side memory buffer for exchanging data between CPU and GPU
+// allocated and deallocates memory used by TensorRT
+using nvinfer1::IHostMemory;
+// represents data types of tensors
+using nvinfer1::DataType;
 
 Logger tensorrt_logger;
 const int kOutputSize =

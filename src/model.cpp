@@ -273,9 +273,8 @@ ILayer *CreateSPPFLayer(INetworkDefinition *network,
   return convo_layer_2;
 }
 
-std::vector<std::vector<float>>
-getAnchors(std::map<std::string, Weights> *weight_map,
-           const std::string &layer_name) {
+std::vector<std::vector<float>> getAnchors(
+    std::map<std::string, Weights> *weight_map, const std::string &layer_name) {
   std::vector<std::vector<float>> anchors;
   Weights weights = (*weight_map)[layer_name + ".anchor_grid"];
   const int anchor_len = kNumAnchor * 2;
@@ -340,11 +339,11 @@ IPluginV2Layer *AddYoLoLayer(INetworkDefinition *network,
   return yolo_layer;
 }
 
-} // namespace
+}  // namespace
 
-ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
-                                  IBuilderConfig *config, DataType dt,
-                                  const float &depth_multiplier,
+ICudaEngine *BuildDetectionEngine(unsigned int max_batch_size,
+                                  IBuilder *builder, IBuilderConfig *config,
+                                  DataType dt, const float &depth_multiplier,
                                   const float &width_multiplier,
                                   const std::string &wts_file_name) {
   INetworkDefinition *network = builder->createNetworkV2(0U);
@@ -492,8 +491,8 @@ ICudaEngine *BuildDetectionEngine(unsigned int maxBatchSize, IBuilder *builder,
   network->markOutput(*yolo_layer->getOutput(0));
 
   // Engine config
-  builder->setMaxBatchSize(maxBatchSize);
-  config->setMaxWorkspaceSize(16 * (1 << 20)); // 16MB
+  builder->setMaxBatchSize(max_batch_size);
+  config->setMaxWorkspaceSize(16 * (1 << 20));  // 16MB
 #if defined(USE_FP16)
   config->setFlag(BuilderFlag::kFP16);
 #endif
