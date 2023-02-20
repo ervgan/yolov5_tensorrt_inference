@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "../include/cuda_utils.h"
-#include "../plugin/yolo_layer.h"
+#include "../include/yolo_layer.h"
 
 // Implements a TensorRT custom plugin
 // to process the last tensor output according to the yolo specifications
