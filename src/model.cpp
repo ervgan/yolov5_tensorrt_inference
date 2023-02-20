@@ -11,7 +11,19 @@
 #include "../include/config.h"
 #include "../include/yolo_layer.h"
 
-using namespace nvinfer1;
+using nvinfer1::DataType;
+using nvinfer1::IBuilder;
+using nvinfer1::IBuilderConfig;
+using nvinfer1::ICudaEngine;
+// base interface for all layers in TensorRT
+using nvinfer1::ILayer;
+// inherits from ILayer
+using nvinfer1::IScaleLayer;
+// Neural network definition: specifies layers and connections between them
+using nvinfer1::INetworkDefinition;
+using nvinfer1::ITensor;
+// specifies how scale values are applied to input tensor of a layer
+using nvinfer1::ScaleMode;
 
 // C++ implementation of Yolov5 modules in models/common.py
 // https://github.com/ultralytics/yolov5/blob/d02ee60512c50d9573bb7a136d8baade8a0bd332/models/common.py#L159
