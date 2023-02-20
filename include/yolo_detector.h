@@ -2,12 +2,15 @@
 #include <string>
 #include <vector>
 
-#include "model.h"
+#include "../include/model.h"
 
-using namespace nvinfer1;
+using nvinfer1::cudaStream_t;
+using nvinfer1::ICudaEngine;
+using nvinfer1::IExecutionContext;
+using nvinfer1::IRuntime;
 
 class YoloDetector {
-public:
+ public:
   YoloDetector();
 
   ~YoloDetector();
@@ -18,21 +21,22 @@ public:
                             float **gpu_output_buffer,
                             float **cpu_output_buffer);
 
-  void SerializeEngine(unsigned int max_batch_size, float &depth_multiple,
-                       float &width_multiple, std::string &wts_file,
-                       std::string &engine_file);
+  void SerializeEngine(unsigned int max_batch_size, const float &depth_multiple,
+                       const float &width_multiple, const std::string &wts_file,
+                       const std::string &engine_file);
 
-  void DeserializeEngine(std::string &engine_file, IRuntime **runtime,
+  void DeserializeEngine(const std::string &engine_file, IRuntime **runtime,
                          ICudaEngine **engine, IExecutionContext **context);
 
-  void RunInference(IExecutionContext &context, cudaStream_t &stream,
-                    void **gpu_buffers, float *output, int batch_size);
+  void RunInference(const IExecutionContext &context,
+                    const cudaStream_t &stream, void **gpu_buffers,
+                    float *output, int batch_size);
 
   void DrawDetections();
 
   void ProcessImages();
 
-private:
+ private:
   std::string wts_file_ = "";
   std::string engine_file_ = "";
   float depth_multiple_ = 0.0f;

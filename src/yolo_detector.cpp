@@ -17,7 +17,19 @@
 #include "post_process.h"
 #include "pre_process.h"
 
-using namespace nvinfer1;
+// CUDA API type representing a stream of operations to be executed async on a
+// CUDA device TensorRT uses this stream to manage execution of inference
+// operations on the GPU
+using nvinfer1::cudaStream_t;
+// Compiled representation of a neural network
+// contains topology, layer config, device memory alloc and inference methods
+using nvinfer1::ICudaEngine;
+// Context for performance inference on a ICudaEngine
+// contains methods for setting and retrieving CUDA stream
+using nvinfer1::IExecutionContext;
+// // Factory object ot create a ICudaEngine object from serialized .engine
+// files
+using nvinfer1::IRuntime;
 
 Logger tensorrt_logger;
 const int kOutputSize =
@@ -99,7 +111,7 @@ int ReadDirFiles(const char *directory_name,
   return 0;
 }
 
-} // namespace
+}  // namespace
 
 YoloDetector::YoloDetector() {}
 
@@ -136,8 +148,8 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
   *cpu_output_buffer = new float[kBatchSize * kOutputSize];
 }
 
-void YoloDetector::RunInference(IExecutionContext &context,
-                                cudaStream_t &stream, void **gpu_buffers,
+void YoloDetector::RunInference(const IExecutionContext &context,
+                                const cudaStream_t &stream, void **gpu_buffers,
                                 float *output, int batch_size) {
   // Sets execution context for TensorRT
   context.enqueue(batch_size, gpu_buffers, stream, nullptr);
@@ -145,14 +157,17 @@ void YoloDetector::RunInference(IExecutionContext &context,
   CUDA_CHECK(cudaMemcpyAsync(output, gpu_buffers[1],
                              batch_size * kOutputSize * sizeof(float),
                              cudaMemcpyDeviceToHost, stream));
+
+  // makes sure all memory copies have been completed before returning
   cudaStreamSynchronize(stream);
 }
 
 // Serializes .wts file into .engine file
 void YoloDetector::SerializeEngine(unsigned int max_batch_size,
-                                   float &depth_multiple, float &width_multiple,
-                                   std::string &wts_file,
-                                   std::string &engine_file) {
+                                   const float &depth_multiple,
+                                   const float &width_multiple,
+                                   const std::string &wts_file,
+                                   const std::string &engine_file) {
   // Create builder
   IBuilder *builder = createInferBuilder(tensorrt_logger);
   IBuilderConfig *config = builder->createBuilderConfig();
@@ -188,7 +203,7 @@ void YoloDetector::SerializeEngine(unsigned int max_batch_size,
   serialized_engine->destroy();
 }
 
-void YoloDetector::DeserializeEngine(std::string &engine_file,
+void YoloDetector::DeserializeEngine(const std::string &engine_file,
                                      IRuntime **runtime, ICudaEngine **engine,
                                      IExecutionContext **context) {
   std::ifstream file(engine_file, std::ios::binary);
@@ -260,6 +275,7 @@ void YoloDetector::ProcessImages() {
   }
 }
 
+// This method should be modified to reeive incoming frames from live video
 void YoloDetector::DrawDetections() {
   // store images and image names in vectors
   for (size_t i = 0; i < file_names_.size(); i += kBatchSize) {

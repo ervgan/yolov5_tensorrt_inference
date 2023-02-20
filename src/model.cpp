@@ -43,6 +43,7 @@ std::map<std::string, Weights> LoadWeights(const std::string file) {
     weight.type = DataType::kFLOAT;
     // Load blob
     uint32_t *weights =
+
         reinterpret_cast<uint32_t *>(malloc(sizeof(weights) * size));
 
     for (uint32_t x = 0, y = size; x < y; ++x) {
@@ -207,7 +208,7 @@ ILayer *CreateC3Bottleneck(INetworkDefinition *network,
                            int nb_groups, float expansion,
                            const std::string &layer_name) {
   int hidden_channel =
-      static_cast<int>(static_cast<float> output_channel * expansion);
+      static_cast<int>(static_cast<float>(output_channel) * expansion);
 
   auto convo_layer_1 = CreateConvoLayer(
       network, weight_map, input, hidden_channel, 1, 1, 1, layer_name + ".cv1");
