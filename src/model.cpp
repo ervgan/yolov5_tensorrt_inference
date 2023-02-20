@@ -25,6 +25,7 @@ using nvinfer1::IPluginV2;
 using nvinfer1::IPluginV2Layer;
 using nvinfer1::PluginField;
 using nvinfer1::PluginFieldCollection;
+using nvinfer1::PluginFieldType;
 using nvinfer1::PoolingType;
 using nvinfer1::ResizeMode;
 // base interface for all layers in TensorRT
