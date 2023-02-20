@@ -55,8 +55,3 @@ make
 ./main -s yolov5s.wts yolov5s.engine s
 ./main -d yolov5s.engine ../images
 
-
-
-
-
-
