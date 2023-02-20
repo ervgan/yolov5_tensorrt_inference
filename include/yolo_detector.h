@@ -9,7 +9,7 @@ using nvinfer1::IExecutionContext;
 using nvinfer1::IRuntime;
 
 class YoloDetector {
- public:
+public:
   YoloDetector();
 
   ~YoloDetector();
@@ -34,7 +34,7 @@ class YoloDetector {
 
   void ProcessImages();
 
- private:
+private:
   std::string wts_file_ = "";
   std::string engine_file_ = "";
   float depth_multiple_ = 0.0f;

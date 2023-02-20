@@ -1,4 +1,4 @@
-#include "yolo_detector.h"
+#include "../include/yolo_detector.h"
 
 #include <dirent.h>
 #include <glog/logging.h>
@@ -90,6 +90,7 @@ bool ParseArgs(int argc, char **argv, std::string *wts_file,
   } else if (std::string(argv[1]) == "-d" && argc == 4) {
     *engine_file = std::string(argv[2]);
     *image_directory = std::string(argv[3]);
+
   } else {
     return false;
   }
@@ -99,7 +100,7 @@ bool ParseArgs(int argc, char **argv, std::string *wts_file,
 
 // this will not be needed for deployment
 int ReadDirFiles(const char *directory_name,
-                 std::vector<std::string> &file_names) {
+                 std::vector<std::string> *file_names) {
   DIR *directory = opendir(directory_name);
 
   if (directory == nullptr) {
@@ -111,7 +112,7 @@ int ReadDirFiles(const char *directory_name,
   while ((file = readdir(directory)) != nullptr) {
     if (strcmp(file->d_name, ".") != 0 && strcmp(file->d_name, "..") != 0) {
       std::string cur_file_name(file->d_name);
-      file_names.push_back(cur_file_name);
+      file_names->push_back(cur_file_name);
     }
   }
 
@@ -119,7 +120,7 @@ int ReadDirFiles(const char *directory_name,
   return 0;
 }
 
-}  //  namespace
+} //  namespace
 
 YoloDetector::YoloDetector() {}
 
@@ -277,13 +278,13 @@ int YoloDetector::Init(int argc, char **argv) {
 void YoloDetector::ProcessImages() {
   // Read images from directory
   // This should read one frame at a time for deployment
-  if (ReadDirFiles(image_directory_.c_str(), file_names_) < 0) {
+  if (ReadDirFiles(image_directory_.c_str(), &file_names_) < 0) {
     std::cerr << "read_files_in_dir failed." << std::endl;
     return;
   }
 }
 
-// This method should be modified to reeive incoming frames from live video
+// This method should be modified to receive incoming frames from live video
 void YoloDetector::DrawDetections() {
   // store images and image names in vectors
   for (size_t i = 0; i < file_names_.size(); i += kBatchSize) {
