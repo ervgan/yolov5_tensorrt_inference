@@ -11,16 +11,12 @@
 #include <string>
 #include <vector>
 
+#include "../include/cuda_utils.h"
 #include "../include/logging/logging.h"
-#include "cuda_utils.h"
-#include "model.h"
-#include "post_process.h"
-#include "pre_process.h"
+#include "../include/model.h"
+#include "../include/post_process.h"
+#include "../include/pre_process.h"
 
-// CUDA API type representing a stream of operations to be executed async on a
-// CUDA device TensorRT uses this stream to manage execution of inference
-// operations on the GPU
-using nvinfer1::cudaStream_t;
 // Compiled representation of a neural network
 // contains topology, layer config, device memory alloc and inference methods
 using nvinfer1::ICudaEngine;
@@ -90,6 +86,7 @@ bool ParseArgs(int argc, char **argv, std::string &wts_file,
   return true;
 }
 
+// this will not be needed for deployment
 int ReadDirFiles(const char *directory_name,
                  std::vector<std::string> &file_names) {
   DIR *directory = opendir(directory_name);
@@ -125,7 +122,7 @@ YoloDetector::~YoloDetector() {
   context_->destroy();
   engine_->destroy();
   runtime_->destroy();
-};
+}
 
 void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
                                         float **gpu_input_buffer,

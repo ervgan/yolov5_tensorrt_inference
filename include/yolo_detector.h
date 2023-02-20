@@ -4,7 +4,6 @@
 
 #include "../include/model.h"
 
-using nvinfer1::cudaStream_t;
 using nvinfer1::ICudaEngine;
 using nvinfer1::IExecutionContext;
 using nvinfer1::IRuntime;
