@@ -145,11 +145,11 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
   *cpu_output_buffer = new float[kBatchSize * kOutputSize];
 }
 
-void YoloDetector::RunInference(const IExecutionContext &context,
+void YoloDetector::RunInference(IExecutionContext *context,
                                 const cudaStream_t &stream, void **gpu_buffers,
                                 float *output, int batch_size) {
   // Sets execution context for TensorRT
-  context.enqueue(batch_size, gpu_buffers, stream, nullptr);
+  context->enqueue(batch_size, gpu_buffers, stream, nullptr);
   // async memory copy between host and GPU device
   CUDA_CHECK(cudaMemcpyAsync(output, gpu_buffers[1],
                              batch_size * kOutputSize * sizeof(float),
@@ -290,7 +290,7 @@ void YoloDetector::DrawDetections() {
                         stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();
-    RunInference(*context_, stream_, (void **)gpu_buffers_, cpu_output_buffer_,
+    RunInference(context_, stream_, (void **)gpu_buffers_, cpu_output_buffer_,
                  kBatchSize);
     auto end = std::chrono::system_clock::now();
     std::cout << "inference time: "
