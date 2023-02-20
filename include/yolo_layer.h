@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <string>
 #include <vector>
 
@@ -8,7 +10,7 @@
 
 namespace nvinfer1 {
 class API YoloLayerPlugin : public IPluginV2IOExt {
-public:
+ public:
   YoloLayerPlugin(int class_count, int neural_net_width, int neural_net_height,
                   int max_output, bool is_segmentation,
                   const std::vector<YoloKernel> &yolo_kernel);
@@ -63,8 +65,8 @@ public:
                                     const bool *is_input_broadcasted,
                                     int nb_inputs) const TRT_NOEXCEPT override;
 
-  bool
-  canBroadcastInputAcrossBatch(int input_index) const TRT_NOEXCEPT override;
+  bool canBroadcastInputAcrossBatch(int input_index) const
+      TRT_NOEXCEPT override;
 
   // cuda_dnn refers to cuda deep learning library
   // cuda_blas refers to cuda's basic linear algebra library
@@ -78,7 +80,7 @@ public:
 
   void detachFromContext() TRT_NOEXCEPT override;
 
-private:
+ private:
   void ForwardGpu(const float *const *inputs, float *output,
                   cudaStream_t stream, int batch_size);
   int thread_count_ = 256;
@@ -94,7 +96,7 @@ private:
 };
 
 class API YoloPluginCreator : public IPluginCreator {
-public:
+ public:
   YoloPluginCreator();
 
   ~YoloPluginCreator() override = default;
@@ -120,10 +122,10 @@ public:
     return namespace_.c_str();
   }
 
-private:
+ private:
   std::string namespace_;
   static PluginFieldCollection plugin_fields_;
   static std::vector<PluginField> plugin_attributes_;
 };
 REGISTER_TENSORRT_PLUGIN(YoloPluginCreator);
-}; // namespace nvinfer1
+};  // namespace nvinfer1

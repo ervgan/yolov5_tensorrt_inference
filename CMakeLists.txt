@@ -25,12 +25,7 @@ include_directories(/home/nvidia/TensorRT-8.2.5.1/include/)
 link_directories(/home/nvidia/TensorRT-8.2.5.1/lib/)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/)
-include_directories(${PROJECT_SOURCE_DIR}/plugin/)
 file(GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.cu)
-file(GLOB_RECURSE PLUGIN_SRCS ${PROJECT_SOURCE_DIR}/plugin/*.cu)
-
-add_library(myplugins SHARED ${PLUGIN_SRCS})
-target_link_libraries(myplugins nvinfer cudart)
 
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -38,7 +33,6 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(main main.cpp ${SRCS})
 target_link_libraries(main nvinfer)
 target_link_libraries(main cudart)
-target_link_libraries(main myplugins)
 target_link_libraries(main ${OpenCV_LIBS})
 target_link_libraries(main ${glog_LIBRARIES})
 
