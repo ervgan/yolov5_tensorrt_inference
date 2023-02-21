@@ -265,6 +265,7 @@ void YoloDetector::DrawDetections() {
   }
 
   cv::Mat frame;
+  int count = 0;
   for (;;) {
     if (!cap.read(frame)) break;
 
@@ -295,7 +296,6 @@ void YoloDetector::DrawDetections() {
     // char key = cv::waitKey(10);
     // if (key == 27)  // ESC
     // break;
-    int count = 0;
     cv::imwrite("_image" + std::to_string(count) + ".jpg", frame);
     count++;
   }
