@@ -32,8 +32,6 @@ class YoloDetector {
 
   void DrawDetections();
 
-  void ProcessImages();
-
  private:
   std::string wts_file_ = "";
   std::string engine_file_ = "";
