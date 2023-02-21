@@ -296,7 +296,7 @@ void YoloDetector::DrawDetections() {
     // if (key == 27)  // ESC
     // break;
     int count = 0;
-    cv::imwrite("_image" + count + ".jpg", frame);
+    cv::imwrite("_image" + std::to_string(count) + ".jpg", frame);
     count++;
   }
 }
