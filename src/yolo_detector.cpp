@@ -297,5 +297,6 @@ void YoloDetector::DrawDetections() {
     // break;
     int count = 0;
     cv::imwrite("_image" + count, frame);
+    count++;
   }
 }
