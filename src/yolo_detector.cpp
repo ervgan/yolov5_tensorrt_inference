@@ -266,7 +266,7 @@ void YoloDetector::DrawDetections() {
     if (!cap.read(frame)) break;
 
     // Preprocess
-    CudaPreprocess(&reinterpret_cast<uint8_t *>(frame.data), frame.cols,
+    CudaPreprocess(reinterpret_cast<uint8_t *>(frame.data), frame.cols,
                    frame.rows, &gpu_buffers_[0][0], kInputW, kInputH, stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();
@@ -281,7 +281,7 @@ void YoloDetector::DrawDetections() {
 
     // Run Non Maximum Suppresion
     std::vector<Detection> result_batch;
-    ApplyNonMaxSuppresion(&result_batch, &(*cpu_output_buffer_)[0], kConfThresh,
+    ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
                           kNmsThresh);
 
     // Draw bounding boxes
