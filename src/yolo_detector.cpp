@@ -255,8 +255,8 @@ int YoloDetector::Init(int argc, char **argv) {
 void YoloDetector::DrawDetections() {
   cv::VideoCapture cap(video_directory_, cv::CAP_ANY);
   if (!cap.isOpened()) {
-    std::cout << "!!! Failed to open file: " << video_directory_, << std::endl;
-    return -1;
+    std::cout << "!!! Failed to open file: " << video_directory_ << std::endl;
+    return;
   }
 
   cv::Mat frame;
@@ -264,8 +264,8 @@ void YoloDetector::DrawDetections() {
     if (!cap.read(frame)) break;
 
     // Preprocess
-    CudaPreprocess(&frame, frame.cols, frame.rows, &gpu_buffers_[0][0], kInputW,
-                   kInputH, stream_);
+    CudaPreprocess(&reinterpret_cast<uint8_t *>(frame.data), frame.cols,
+                   frame.rows, &gpu_buffers_[0][0], kInputW, kInputH, stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();
     RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
