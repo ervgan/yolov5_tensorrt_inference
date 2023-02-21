@@ -281,7 +281,7 @@ void YoloDetector::DrawDetections() {
 
     // Run Non Maximum Suppresion
     std::vector<Detection> result_batch;
-    ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_, kConfThresh,
+    ApplyNonMaxSuppresion(&result_batch, &(*cpu_output_buffer_)[0], kConfThresh,
                           kNmsThresh);
 
     // Draw bounding boxes
