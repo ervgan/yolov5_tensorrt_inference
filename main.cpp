@@ -9,7 +9,6 @@ int main(int argc, char **argv) {
   // state 0 corresponds to serializing file to .engine
   // state 1 corresponds to using .engine for detection
   if (state == 1) {
-    yoloDetector.ProcessImages();
     yoloDetector.DrawDetections();
   }
 
