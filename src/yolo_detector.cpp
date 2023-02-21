@@ -278,7 +278,7 @@ void YoloDetector::DrawDetections() {
               << "ms" << std::endl;
 
     // Run Non Maximum Suppresion
-    std::vector<std::vector<Detection>> result_batch;
+    std::vector<Detection> result_batch;
     ApplyNonMaxSuppression(&result_batch, &cpu_output_buffer_, kConfThresh,
                            kNmsThresh);
 
