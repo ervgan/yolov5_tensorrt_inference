@@ -40,6 +40,8 @@ using nvinfer1::IHostMemory;
 using nvinfer1::DataType;
 
 Logger tensorrt_logger;
+const int kOutputSize =
+    kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 
 namespace {
 
@@ -279,8 +281,8 @@ void YoloDetector::DrawDetections() {
 
     // Run Non Maximum Suppresion
     std::vector<Detection> result_batch;
-    ApplyNonMaxSuppression(&result_batch, &cpu_output_buffer_, kConfThresh,
-                           kNmsThresh);
+    ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_, kConfThresh,
+                          kNmsThresh);
 
     // Draw bounding boxes
     DrawBox(frame, &result_batch);
