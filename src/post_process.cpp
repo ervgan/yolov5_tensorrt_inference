@@ -140,14 +140,12 @@ void ApplyBatchNonMaxSuppression(
   }
 }
 
-void DrawBox(const cv::Mat &image, std::vector<Detection> *result_batch) {
-  std::vector<Detection> &result = *result_batch;
-
-  for (size_t j = 0; j < result.size(); j++) {
-    cv::Rect rectangle = CreateRectangle(image, result[j].bounding_box);
+void DrawBox(const cv::Mat &image, std::vector<Detection> *result) {
+  for (size_t j = 0; j < result->size(); j++) {
+    cv::Rect rectangle = CreateRectangle(image, (*result)[j].bounding_box);
     cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
     int rounded_confidence =
-        static_cast<int>(std::round(result[j].confidence * 100));
+        static_cast<int>(std::round((*result)[j].confidence * 100));
     float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
     cv::putText(image, std::to_string(result_confidence).substr(0, 4),
                 cv::Point(rectangle.x, rectangle.y - 1), cv::FONT_HERSHEY_PLAIN,
