@@ -265,13 +265,15 @@ void YoloDetector::DrawDetections() {
   }
 
   cv::Mat frame;
+  cv::Mat resized_frame;
   int count = 0;
   for (;;) {
     if (!cap.read(frame)) break;
 
+    cv::resize(frame, resized_frame, cv::Size(1200, 720));
     // Preprocess
-    CudaPreprocess(reinterpret_cast<uint8_t *>(frame.data), frame.cols,
-                   frame.rows, &gpu_buffers_[0][0], kInputW, kInputH, stream_);
+    CudaPreprocess(resized_frame.data, resized_frame.cols, resized_frame.rows,
+                   &gpu_buffers_[0][0], kInputW, kInputH, stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();
     RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
@@ -289,14 +291,14 @@ void YoloDetector::DrawDetections() {
                           kNmsThresh);
 
     // Draw bounding boxes
-    DrawBox(frame, &result_batch);
+    DrawBox(resized_frame, &result_batch);
 
-    // cv::imshow("window", frame);
+    // cv::imshow("window", resized_frame);
 
     // char key = cv::waitKey(10);
     // if (key == 27)  // ESC
     // break;
-    cv::imwrite("_image" + std::to_string(count) + ".jpg", frame);
+    cv::imwrite("_image" + std::to_string(count) + ".jpg", resized_frame);
     count++;
   }
 }
