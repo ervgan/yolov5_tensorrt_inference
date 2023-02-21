@@ -17,7 +17,6 @@
 #include "../include/model.h"
 #include "../include/post_process.h"
 #include "../include/pre_process.h"
-#include "google/protobuf/stubs/common.h"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
