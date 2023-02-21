@@ -20,8 +20,7 @@ __global__ void WarpAffineKernel(uint8_t *image_buffer, int image_line_size,
                                  uint8_t constant_rgb_value,
                                  AffineMatrix invert_scalar, int image_edge) {
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
-  if (thread_id >= image_edge)
-    return;
+  if (thread_id >= image_edge) return;
 
   // get affine transformation
   float rotation_x = invert_scalar.value[0];
@@ -168,6 +167,9 @@ void CudaPreprocess(uint8_t *image, int image_width, int image_height,
       image_buffer_device, image_width * 3, image_width, image_height,
       destination_image_buffer, processing_image_width, processing_image_height,
       128, invert_scalar, jobs);
+  // synchronizes host CPU thread and the execution of a CUDA stream (sequence
+  // of tasks)
+  CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
 void CudaPreprocessBatch(std::vector<cv::Mat> *image_batch, float *image_buffer,

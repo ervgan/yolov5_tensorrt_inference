@@ -7,13 +7,13 @@ namespace {
 float intersection_over_union(float first_box[4], float second_box[4]) {
   float intersection_box[] = {
       (std::max)(first_box[0] - first_box[2] / 2.f,
-                 second_box[0] - second_box[2] / 2.f), // left
+                 second_box[0] - second_box[2] / 2.f),  // left
       (std::min)(first_box[0] + first_box[2] / 2.f,
-                 second_box[0] + second_box[2] / 2.f), // right
+                 second_box[0] + second_box[2] / 2.f),  // right
       (std::max)(first_box[1] - first_box[3] / 2.f,
-                 second_box[1] - second_box[3] / 2.f), // top
+                 second_box[1] - second_box[3] / 2.f),  // top
       (std::min)(first_box[1] + first_box[3] / 2.f,
-                 second_box[1] + second_box[3] / 2.f), // bottom
+                 second_box[1] + second_box[3] / 2.f),  // bottom
   };
 
   if (intersection_box[2] > intersection_box[3] ||
@@ -46,7 +46,7 @@ cv::Rect ScaleRectangle(float bounding_box[4], float scale) {
                   round(bottom - top));
 }
 
-} // namespace
+}  // namespace
 
 cv::Rect CreateRectangle(const cv::Mat &image, float bounding_box[4]) {
   float rectangle_top_left_x, rectangle_bottom_right_x, rectangle_top_left_y,
@@ -140,21 +140,18 @@ void ApplyBatchNonMaxSuppression(
   }
 }
 
-void DrawBox(const std::vector<cv::Mat> &image_batch,
+void DrawBox(const cv::Mat &image,
              std::vector<std::vector<Detection>> *result_batch) {
-  for (size_t i = 0; i < image_batch.size(); i++) {
-    std::vector<Detection> &result = (*result_batch)[i];
-    cv::Mat image = image_batch[i];
+  std::vector<Detection> &result = *result_batch;
 
-    for (size_t j = 0; j < result.size(); j++) {
-      cv::Rect rectangle = CreateRectangle(image, result[j].bounding_box);
-      cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
-      int rounded_confidence =
-          static_cast<int>(std::round(result[j].confidence * 100));
-      float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
-      cv::putText(image, std::to_string(result_confidence).substr(0, 4),
-                  cv::Point(rectangle.x, rectangle.y - 1),
-                  cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
-    }
+  for (size_t j = 0; j < result.size(); j++) {
+    cv::Rect rectangle = CreateRectangle(image, result[j].bounding_box);
+    cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
+    int rounded_confidence =
+        static_cast<int>(std::round(result[j].confidence * 100));
+    float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
+    cv::putText(image, std::to_string(result_confidence).substr(0, 4),
+                cv::Point(rectangle.x, rectangle.y - 1), cv::FONT_HERSHEY_PLAIN,
+                1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
   }
 }

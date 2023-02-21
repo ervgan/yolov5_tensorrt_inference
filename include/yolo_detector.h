@@ -9,7 +9,7 @@ using nvinfer1::IExecutionContext;
 using nvinfer1::IRuntime;
 
 class YoloDetector {
-public:
+ public:
   YoloDetector();
 
   ~YoloDetector();
@@ -34,12 +34,12 @@ public:
 
   void ProcessImages();
 
-private:
+ private:
   std::string wts_file_ = "";
   std::string engine_file_ = "";
   float depth_multiple_ = 0.0f;
   float width_multiple_ = 0.0f;
-  std::string image_directory_;
+  std::string video_directory_;
   IRuntime *runtime_ = nullptr;
   ICudaEngine *engine_ = nullptr;
   IExecutionContext *context_ = nullptr;

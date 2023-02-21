@@ -40,14 +40,12 @@ using nvinfer1::IHostMemory;
 using nvinfer1::DataType;
 
 Logger tensorrt_logger;
-const int kOutputSize =
-    kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 
 namespace {
 
 bool ParseArgs(int argc, char **argv, std::string *wts_file,
                std::string *engine_file, float *depth_multiple,
-               float *width_multiple, std::string *image_directory) {
+               float *width_multiple, std::string *video_directory) {
   if (argc < 4) {
     return false;
   }
@@ -89,7 +87,7 @@ bool ParseArgs(int argc, char **argv, std::string *wts_file,
 
   } else if (std::string(argv[1]) == "-d" && argc == 4) {
     *engine_file = std::string(argv[2]);
-    *image_directory = std::string(argv[3]);
+    *video_directory = std::string(argv[3]);
 
   } else {
     return false;
@@ -98,29 +96,7 @@ bool ParseArgs(int argc, char **argv, std::string *wts_file,
   return true;
 }
 
-// this will not be needed for deployment
-int ReadDirFiles(const char *directory_name,
-                 std::vector<std::string> *file_names) {
-  DIR *directory = opendir(directory_name);
-
-  if (directory == nullptr) {
-    return -1;
-  }
-
-  struct dirent *file = nullptr;
-
-  while ((file = readdir(directory)) != nullptr) {
-    if (strcmp(file->d_name, ".") != 0 && strcmp(file->d_name, "..") != 0) {
-      std::string cur_file_name(file->d_name);
-      file_names->push_back(cur_file_name);
-    }
-  }
-
-  closedir(directory);
-  return 0;
-}
-
-} //  namespace
+}  //  namespace
 
 YoloDetector::YoloDetector() {}
 
@@ -243,7 +219,7 @@ void YoloDetector::DeserializeEngine(const std::string &engine_file,
 int YoloDetector::Init(int argc, char **argv) {
   // sets parameters
   if (!ParseArgs(argc, argv, &wts_file_, &engine_file_, &depth_multiple_,
-                 &width_multiple_, &image_directory_)) {
+                 &width_multiple_, &video_directory_)) {
     std::cerr << "arguments not right!" << std::endl;
     std::cerr << "./yolov5_det -s [.wts_file] [.engine_file] [n/s/m/l/x "
                  "or c depth_multiple width_multiple]  // serialize model to "
@@ -275,31 +251,21 @@ int YoloDetector::Init(int argc, char **argv) {
   return 1;
 }
 
-void YoloDetector::ProcessImages() {
-  // Read images from directory
-  // This should read one frame at a time for deployment
-  if (ReadDirFiles(image_directory_.c_str(), &file_names_) < 0) {
-    std::cerr << "read_files_in_dir failed." << std::endl;
-    return;
-  }
-}
-
 // This method should be modified to receive incoming frames from live video
 void YoloDetector::DrawDetections() {
-  // store images and image names in vectors
-  for (size_t i = 0; i < file_names_.size(); i += kBatchSize) {
-    std::vector<cv::Mat> image_batch;
-    std::vector<std::string> image_name_batch;
+  cv::VideoCapture cap(video_directory_, cv::CAP_ANY);
+  if (!cap.isOpened()) {
+    std::cout << "!!! Failed to open file: " << video_directory_, << std::endl;
+    return -1;
+  }
 
-    for (size_t j = i; j < i + kBatchSize && j < file_names_.size(); j++) {
-      cv::Mat image = cv::imread(image_directory_ + "/" + file_names_[j]);
-      image_batch.push_back(image);
-      image_name_batch.push_back(file_names_[j]);
-    }
+  cv::Mat frame;
+  for (;;) {
+    if (!cap.read(frame)) break;
 
     // Preprocess
-    CudaPreprocessBatch(&image_batch, gpu_buffers_[0], kInputW, kInputH,
-                        stream_);
+    CudaPreprocess(&frame, frame.cols, frame.rows, &gpu_buffers_[0][0], kInputW,
+                   kInputH, stream_);
     // Run inference
     auto start = std::chrono::system_clock::now();
     RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
@@ -313,17 +279,16 @@ void YoloDetector::DrawDetections() {
 
     // Run Non Maximum Suppresion
     std::vector<std::vector<Detection>> result_batch;
-    ApplyBatchNonMaxSuppression(&result_batch, cpu_output_buffer_,
-                                image_batch.size(), kOutputSize, kConfThresh,
-                                kNmsThresh);
+    ApplyNonMaxSuppression(&result_batch, &cpu_output_buffer_, kConfThresh,
+                           kNmsThresh);
 
     // Draw bounding boxes
-    DrawBox(image_batch, &result_batch);
+    DrawBox(frame, &result_batch);
 
-    // Save images
-    // Delete this for deployment
-    for (size_t j = 0; j < image_batch.size(); j++) {
-      cv::imwrite("_" + image_name_batch[j], image_batch[j]);
-    }
+    cv::imshow("window", frame);
+
+    char key = cv::waitKey(10);
+    if (key == 27)  // ESC
+      break;
   }
 }
