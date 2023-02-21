@@ -8,6 +8,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
 
@@ -16,6 +17,9 @@
 #include "../include/model.h"
 #include "../include/post_process.h"
 #include "../include/pre_process.h"
+#include "google/protobuf/stubs/common.h"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 
 // Compiled representation of a neural network
 // contains topology, layer config, device memory alloc and inference methods
@@ -287,10 +291,12 @@ void YoloDetector::DrawDetections() {
     // Draw bounding boxes
     DrawBox(frame, &result_batch);
 
-    cv::imshow("window", frame);
+    // cv::imshow("window", frame);
 
-    char key = cv::waitKey(10);
-    if (key == 27)  // ESC
-      break;
+    // char key = cv::waitKey(10);
+    // if (key == 27)  // ESC
+    // break;
+    int count = 0;
+    cv::imwrite("_image" + count, frame);
   }
 }
