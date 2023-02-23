@@ -302,3 +302,6 @@ void YoloDetector::DrawDetections() {
     count++;
   }
 }
+
+// write a method detect just to process one frame then output a detection
+// struct

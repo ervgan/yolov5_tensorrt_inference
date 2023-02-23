@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>yolo_detector</name>
+  <version>0.0.0</version>
+  <maintainer email="ervin.gan@voliro.com">Ervin Gan</maintainer>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>yolo_interface</depend>
+  <depend>std_msgs</depend>
+  <depend>glog_catkin</depend>
+  <depend>opencv</depend>
+  <depend>libopencv-dev</depend>
+
+
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
