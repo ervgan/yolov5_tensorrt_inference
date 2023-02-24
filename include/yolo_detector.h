@@ -32,7 +32,7 @@ class YoloDetector {
   void RunInference(IExecutionContext *context, const cudaStream_t &stream,
                     void **gpu_buffers, float *output, int batch_size);
 
-  void DrawDetection(const Detection &detection);
+  void DrawDetection();
 
   Detection Detect(const cv::Mat &resized_frame);
 

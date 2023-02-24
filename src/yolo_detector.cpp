@@ -255,7 +255,7 @@ int YoloDetector::Init(int argc, char **argv) {
   return 1;
 }
 
-void YoloDetector::DrawDetection(const Detection &detection) {
+void YoloDetector::DrawDetection() {
   cv::VideoCapture cap(video_directory_, cv::CAP_ANY);
   if (!cap.isOpened()) {
     std::cout << "!!! Failed to open file: " << video_directory_ << std::endl;
@@ -282,26 +282,27 @@ void YoloDetector::DrawDetection(const Detection &detection) {
     cv::imwrite("_image" + std::to_string(count) + ".jpg", resized_frame);
     count++;
   }
+}
 
-  Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
-    CudaPreprocess(resized_frame.data, resized_frame.cols, resized_frame.rows,
-                   &gpu_buffers_[0][0], kInputW, kInputH, stream_);
+Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
+  CudaPreprocess(resized_frame.data, resized_frame.cols, resized_frame.rows,
+                 &gpu_buffers_[0][0], kInputW, kInputH, stream_);
 
-    auto start = std::chrono::system_clock::now();
-    RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
-                 cpu_output_buffer_, kBatchSize);
-    auto end = std::chrono::system_clock::now();
-    std::cout << "inference time: "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                       start)
-                     .count()
-              << "ms" << std::endl;
+  auto start = std::chrono::system_clock::now();
+  RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
+               cpu_output_buffer_, kBatchSize);
+  auto end = std::chrono::system_clock::now();
+  std::cout << "inference time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << std::endl;
 
-    std::vector<Detection> result_batch;
-    Detection max_detection;
-    ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
-                          kNmsThresh);
+  std::vector<Detection> result_batch;
+  Detection max_detection;
+  ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
+                        kNmsThresh);
 
-    max_detection = GetMaxDetection(&result_batch);
-    return max_detection;
-  }
+  max_detection = GetMaxDetection(&result_batch);
+  return max_detection;
+}
