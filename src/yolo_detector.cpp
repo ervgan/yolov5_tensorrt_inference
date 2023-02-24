@@ -302,8 +302,24 @@ Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
   Detection max_detection;
   ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
                         kNmsThresh);
-  /*if (!result_batch.empty()) {
+  int detection_nb = 0;
+  for (const auto &det : result_batch) {
+    std::cout << "detection: " << detection_nb
+              << ", confidence: " << det.detection
+              << ", bounding_box_x: " << det.bounding_box.x
+              << ", bounding_box_y: " << det.bounding_box.y
+              << ", bounding_box_width: " << det.bounding_box.width
+              << ", bounding_box_width: " << det.bounding_box.width
+              << std::endl;
+  }
+  if (!result_batch.empty()) {
     max_detection = GetMaxDetection(&result_batch);
-  }*/
-  return result_batch[0];
+  }
+  std::cout << "confidence: " << max_detection.detection
+            << ", bounding_box_x: " << max_detection.bounding_box.x
+            << ", bounding_box_y: " << max_detection.bounding_box.y
+            << ", bounding_box_width: " << max_detection.bounding_box.width
+            << ", bounding_box_width: " << max_detection.bounding_box.width
+            << std::endl;
+  return max_detection;
 }
