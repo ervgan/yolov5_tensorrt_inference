@@ -272,7 +272,10 @@ void YoloDetector::DrawDetection() {
     cv::resize(frame, resized_frame, cv::Size(1200, 720));
 
     detection = Detect(resized_frame);
-    DrawBox(resized_frame, &detection);
+    // if width of bounding box == 0 then there is no detection
+    if (detection.bounding_box[3] != 0) {
+      DrawBox(resized_frame, &detection);
+    }
 
     // cv::imshow("window", resized_frame);
 
@@ -302,24 +305,10 @@ Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
   Detection max_detection{};
   ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
                         kNmsThresh);
-  int detection_nb = 0;
-  for (const auto &det : result_batch) {
-    std::cout << "detection: " << detection_nb
-              << ", confidence: " << det.confidence
-              << ", bounding_box_x: " << det.bounding_box[0]
-              << ", bounding_box_y: " << det.bounding_box[1]
-              << ", bounding_box_width: " << det.bounding_box[2]
-              << ", bounding_box_width: " << det.bounding_box[3] << std::endl;
-    detection_nb++;
-  }
+
   if (!result_batch.empty()) {
     max_detection = GetMaxDetection(&result_batch);
   }
-  std::cout << "confidence: " << max_detection.confidence
-            << ", bounding_box_x: " << max_detection.bounding_box[0]
-            << ", bounding_box_y: " << max_detection.bounding_box[1]
-            << ", bounding_box_width: " << max_detection.bounding_box[2]
-            << ", bounding_box_width: " << max_detection.bounding_box[3]
-            << std::endl;
+
   return max_detection;
 }
