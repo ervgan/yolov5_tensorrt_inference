@@ -153,11 +153,11 @@ Detection GetMaxDetection(const std::vector<Detection> &results) {
   return max_detection;
 }
 
-void DrawBox(const cv::Mat &image, const Detection &detection) {
-  cv::Rect rectangle = CreateRectangle(image, detection.bounding_box);
+void DrawBox(const cv::Mat &image, Detection *detection) {
+  cv::Rect rectangle = CreateRectangle(image, (*detection).bounding_box);
   cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
   int rounded_confidence =
-      static_cast<int>(std::round(detection.confidence * 100));
+      static_cast<int>(std::round((*detection).confidence * 100));
   float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
   cv::putText(image, std::to_string(result_confidence).substr(0, 4),
               cv::Point(rectangle.x, rectangle.y - 1), cv::FONT_HERSHEY_PLAIN,

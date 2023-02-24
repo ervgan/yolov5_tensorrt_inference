@@ -272,7 +272,7 @@ void YoloDetector::DrawDetection(const Detection &detection) {
     cv::resize(frame, resized_frame, cv::Size(1200, 720));
 
     detection = Detect(resized_frame);
-    DrawBox(resized_frame, detection);
+    DrawBox(resized_frame, &detection);
 
     // cv::imshow("window", resized_frame);
 
