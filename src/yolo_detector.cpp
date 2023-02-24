@@ -316,10 +316,10 @@ Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
     max_detection = GetMaxDetection(&result_batch);
   }
   std::cout << "confidence: " << max_detection.detection
-            << ", bounding_box_x: " << max_detection.bounding_box.x
-            << ", bounding_box_y: " << max_detection.bounding_box.y
-            << ", bounding_box_width: " << max_detection.bounding_box.width
-            << ", bounding_box_width: " << max_detection.bounding_box.width
+            << ", bounding_box_x: " << max_detection.bounding_box[0]
+            << ", bounding_box_y: " << max_detection.bounding_box[1]
+            << ", bounding_box_width: " << max_detection.bounding_box[2]
+            << ", bounding_box_width: " << max_detection.bounding_box[3]
             << std::endl;
   return max_detection;
 }
