@@ -150,7 +150,7 @@ Detection GetMaxDetection(std::vector<Detection> *results) {
         return detection_1.confidence < detection_2.confidence;
       });
   if (iterator == results->end()) {
-    CHECK(false);
+    throw "max_element called on emtpy vector";
   }
   auto max_detection = *iterator;
   return max_detection;
