@@ -22,7 +22,7 @@ class DetectorNode : public rclcpp::Node {
     }
     // TODO: create a new function Detect() to process one frame and return a
     // detection struct
-    Detection detection = yolo_detector_.Detect();
+    Detection detection = yolo_detector_.Detect(frame);
     auto detection_msg = yolo_interface::msg::Detection();
 
     detection_msg.header.stamp = this->now();
