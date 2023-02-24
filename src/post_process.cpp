@@ -144,7 +144,6 @@ void ApplyBatchNonMaxSuppression(
 }
 
 Detection GetMaxDetection(const std::vector<Detection> &results) {
-  CHECK_NOTNULL(results);
   auto iterator = std::max_element(
       results.begin(), results.end(),
       [](const Detection &detection_1, const Detection &detection_2) {
