@@ -1,5 +1,7 @@
 #include "../include/post_process.h"
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <sstream>
 
@@ -146,10 +148,10 @@ Detection GetMaxDetection(const std::vector<Detection> &results) {
   auto iterator = std::max_element(
       results.begin(), results.end(),
       [](const Detection &detection_1, const Detection &detection_2) {
-        return detection_1.confidence_score < detection_2.confidence_score;
+        return detection_1.confidence < detection_2.confidence;
       });
   CHECK_NE(iterator, results.end());
-  auto max_detection = *itetaror;
+  auto max_detection = *iterator;
   return max_detection;
 }
 
