@@ -143,13 +143,13 @@ void ApplyBatchNonMaxSuppression(
   }
 }
 
-Detection GetMaxDetection(const std::vector<Detection> &results) {
+Detection GetMaxDetection(std::vector<Detection> *results) {
   auto iterator = std::max_element(
-      results.begin(), results.end(),
+      results->begin(), results->end(),
       [](const Detection &detection_1, const Detection &detection_2) {
         return detection_1.confidence < detection_2.confidence;
       });
-  if (iterator == results.end()) {
+  if (iterator == results->end()) {
     CHECK(false);
   }
   auto max_detection = *iterator;
