@@ -158,7 +158,6 @@ void YoloDetector::SerializeEngine(unsigned int max_batch_size,
                                    const float &width_multiple,
                                    const std::string &wts_file,
                                    const std::string &engine_file) {
-  // Create builder
   IBuilder *builder = createInferBuilder(tensorrt_logger);
   IBuilderConfig *config = builder->createBuilderConfig();
 
@@ -256,8 +255,7 @@ int YoloDetector::Init(int argc, char **argv) {
   return 1;
 }
 
-// This method should be modified to receive incoming frames from live video
-void YoloDetector::DrawDetections() {
+void YoloDetector::DrawDetection(const Detection &detection) {
   cv::VideoCapture cap(video_directory_, cv::CAP_ANY);
   if (!cap.isOpened()) {
     std::cout << "!!! Failed to open file: " << video_directory_ << std::endl;
@@ -266,15 +264,29 @@ void YoloDetector::DrawDetections() {
 
   cv::Mat frame;
   cv::Mat resized_frame;
+  Detection detection;
   int count = 0;
   for (;;) {
     if (!cap.read(frame)) break;
 
     cv::resize(frame, resized_frame, cv::Size(1200, 720));
-    // Preprocess
+
+    detection = Detect(resized_frame);
+    DrawBox(resized_frame, detection);
+
+    // cv::imshow("window", resized_frame);
+
+    // char key = cv::waitKey(10);
+    // if (key == 27)  // ESC
+    // break;
+    cv::imwrite("_image" + std::to_string(count) + ".jpg", resized_frame);
+    count++;
+  }
+
+  Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
     CudaPreprocess(resized_frame.data, resized_frame.cols, resized_frame.rows,
                    &gpu_buffers_[0][0], kInputW, kInputH, stream_);
-    // Run inference
+
     auto start = std::chrono::system_clock::now();
     RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
                  cpu_output_buffer_, kBatchSize);
@@ -285,20 +297,11 @@ void YoloDetector::DrawDetections() {
                      .count()
               << "ms" << std::endl;
 
-    // Run Non Maximum Suppresion
     std::vector<Detection> result_batch;
+    Detection max_detection;
     ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
                           kNmsThresh);
 
-    // Draw bounding boxes
-    DrawBox(resized_frame, &result_batch);
-
-    // cv::imshow("window", resized_frame);
-
-    // char key = cv::waitKey(10);
-    // if (key == 27)  // ESC
-    // break;
-    cv::imwrite("_image" + std::to_string(count) + ".jpg", resized_frame);
-    count++;
+    max_detection = GetMaxDetection(&result_batch);
+    return max_detection;
   }
-}

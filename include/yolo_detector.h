@@ -1,8 +1,10 @@
 
+#include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
 
 #include "../include/model.h"
+#include "../include/types.h"
 
 using nvinfer1::ICudaEngine;
 using nvinfer1::IExecutionContext;
@@ -30,7 +32,9 @@ class YoloDetector {
   void RunInference(IExecutionContext *context, const cudaStream_t &stream,
                     void **gpu_buffers, float *output, int batch_size);
 
-  void DrawDetections();
+  void DrawDetection();
+
+  Detection Detect(const cv::Mat &frame);
 
  private:
   std::string wts_file_ = "";

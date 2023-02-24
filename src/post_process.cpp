@@ -1,5 +1,6 @@
 #include "../include/post_process.h"
 
+#include <algorithm>
 #include <sstream>
 
 namespace {
@@ -140,15 +141,25 @@ void ApplyBatchNonMaxSuppression(
   }
 }
 
-void DrawBox(const cv::Mat &image, std::vector<Detection> *result) {
-  for (size_t j = 0; j < result->size(); j++) {
-    cv::Rect rectangle = CreateRectangle(image, (*result)[j].bounding_box);
-    cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
-    int rounded_confidence =
-        static_cast<int>(std::round((*result)[j].confidence * 100));
-    float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
-    cv::putText(image, std::to_string(result_confidence).substr(0, 4),
-                cv::Point(rectangle.x, rectangle.y - 1), cv::FONT_HERSHEY_PLAIN,
-                1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
-  }
+Detection GetMaxDetection(const std::vector<Detection> &results) {
+  CHECK_NOTNULL(results);
+  auto iterator = std::max_element(
+      results.begin(), results.end(),
+      [](const Detection &detection_1, const Detection &detection_2) {
+        return detection_1.confidence_score < detection_2.confidence_score;
+      });
+  CHECK_EQ(iterator, results.end());
+  auto max_detection = *itetaror;
+  return max_detection;
+}
+
+void DrawBox(const cv::Mat &image, const Detection &detection) {
+  cv::Rect rectangle = CreateRectangle(image, detection.bounding_box);
+  cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
+  int rounded_confidence =
+      static_cast<int>(std::round(detection.confidence * 100));
+  float result_confidence = static_cast<float>(rounded_confidence) / 100.0f;
+  cv::putText(image, std::to_string(result_confidence).substr(0, 4),
+              cv::Point(rectangle.x, rectangle.y - 1), cv::FONT_HERSHEY_PLAIN,
+              1.2, cv::Scalar(0xFF, 0xFF, 0xFF), 2);
 }
