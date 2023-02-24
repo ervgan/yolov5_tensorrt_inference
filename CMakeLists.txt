@@ -15,12 +15,8 @@ pkg_check_modules(glog REQUIRED libglog)
 include_directories(${glog_INCLUDE_DIRS})
 
 # include and link dirs of cuda and tensorrt, you need adapt them if yours are different
-# cuda
-include_directories(/usr/local/cuda/include)
-link_directories(/usr/local/cuda/lib64)
-# tensorrt
-include_directories(/home/nvidia/TensorRT-8.2.5.1/include/)
-link_directories(/home/nvidia/TensorRT-8.2.5.1/lib/)
+find_package(CUDAToolkit REQUIRED)
+find_package(tensorrt REQUIRED)
 # OpenCV
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
