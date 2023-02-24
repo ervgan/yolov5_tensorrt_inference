@@ -34,7 +34,7 @@ class YoloDetector {
 
   void DrawDetection();
 
-  Detection Detect(const cv::Mat &frame);
+  Detection Detect(const cv::Mat &resized_frame);
 
  private:
   std::string wts_file_ = "";
