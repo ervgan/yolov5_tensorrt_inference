@@ -149,7 +149,9 @@ Detection GetMaxDetection(const std::vector<Detection> &results) {
       [](const Detection &detection_1, const Detection &detection_2) {
         return detection_1.confidence < detection_2.confidence;
       });
-  CHECK_NE(iterator, results.end());
+  if (iterator == results.end()) {
+    CHECK(false);
+  }
   auto max_detection = *iterator;
   return max_detection;
 }
