@@ -299,7 +299,7 @@ Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
             << "ms" << std::endl;
 
   std::vector<Detection> result_batch;
-  Detection max_detection;
+  Detection max_detection();
   ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
                         kNmsThresh);
   int detection_nb = 0;
