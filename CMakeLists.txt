@@ -1,37 +1,36 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(yolov5_tensorRT_inference)
+project(yolo_detector)
 
 add_definitions(-DAPI_EXPORTS)
 option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
-set(CMAKE_BUILD_TYPE Debug)
-
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 enable_language(CUDA)
 
-#include glog
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(glog REQUIRED libglog)
-include_directories(${glog_INCLUDE_DIRS})
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies(REQUIRED)
 
-# include and link dirs of cuda and tensorrt, you need adapt them if yours are different
 # cuda
 include_directories(/usr/local/cuda/include)
 link_directories(/usr/local/cuda/lib64)
 # tensorrt
 include_directories(/home/nvidia/TensorRT-8.2.5.1/include/)
 link_directories(/home/nvidia/TensorRT-8.2.5.1/lib/)
-# OpenCV
-find_package(OpenCV)
-include_directories(${OpenCV_INCLUDE_DIRS})
 
-include_directories(${PROJECT_SOURCE_DIR}/include/)
-file(GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.cu)
+ament_auto_add_library(${PROJECT_NAME}_lib
+  src/model.cc
+  src/post_process.cc
+  src/pre_process.cu
+  src/yolo_detector_node.cc
+  src/yolo_detector.cc
+  src/yolo_layer.cu
+)
 
-add_executable(main main.cpp ${SRCS})
-target_link_libraries(main nvinfer)
-target_link_libraries(main cudart)
-target_link_libraries(main ${OpenCV_LIBS})
-target_link_libraries(main ${glog_LIBRARIES})
+ament_auto_add_executable(${PROJECT_NAME}
+  src/main.cpp
+)
 
+target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib cudart nvinfer)
+
+ament_auto_package()
 
