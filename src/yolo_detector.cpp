@@ -302,6 +302,8 @@ Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
   Detection max_detection;
   ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
                         kNmsThresh);
-  if (!result_batch.empty() { max_detection = GetMaxDetection(&result_batch); })
-    return max_detection;
+  if (!result_batch.empty()) {
+    max_detection = GetMaxDetection(&result_batch);
+  }
+  return max_detection;
 }
