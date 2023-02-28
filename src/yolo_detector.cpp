@@ -154,7 +154,7 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
                         kBatchSize * kOutputSize * sizeof(float)));
 
   std::vector<float> cpu_output_vector(kBatchSize * kOutputSize);
-  *cpu_output_buffer_ = cpu_output_vector.data();
+  *cpu_output_buffer_ = cpu_output_vector;
 }
 
 void YoloDetector::RunInference(IExecutionContext *context,
