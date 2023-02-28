@@ -7,13 +7,13 @@ namespace {
 float intersection_over_union(float first_box[4], float second_box[4]) {
   float intersection_box[] = {
       (std::max)(first_box[0] - first_box[2] / 2.f,
-                 second_box[0] - second_box[2] / 2.f), // left
+                 second_box[0] - second_box[2] / 2.f),  // left
       (std::min)(first_box[0] + first_box[2] / 2.f,
-                 second_box[0] + second_box[2] / 2.f), // right
+                 second_box[0] + second_box[2] / 2.f),  // right
       (std::max)(first_box[1] - first_box[3] / 2.f,
-                 second_box[1] - second_box[3] / 2.f), // top
+                 second_box[1] - second_box[3] / 2.f),  // top
       (std::min)(first_box[1] + first_box[3] / 2.f,
-                 second_box[1] + second_box[3] / 2.f), // bottom
+                 second_box[1] + second_box[3] / 2.f),  // bottom
   };
 
   if (intersection_box[2] > intersection_box[3] ||
@@ -46,7 +46,7 @@ cv::Rect ScaleRectangle(float bounding_box[4], float scale) {
                   round(bottom - top));
 }
 
-} // namespace
+}  // namespace
 
 cv::Rect CreateRectangle(const cv::Mat &image, float bounding_box[4]) {
   float rectangle_top_left_x, rectangle_bottom_right_x, rectangle_top_left_y,
@@ -86,20 +86,20 @@ cv::Rect CreateRectangle(const cv::Mat &image, float bounding_box[4]) {
 
 // uses intersection_over_union to delete duplicate bounding boxes
 // for the same detection
-void ApplyNonMaxSuppresion(std::vector<Detection> *results, float *output,
-                           float confidence_thresh, float nms_thresh) {
+void ApplyNonMaxSuppresion(float *cpu_input, float confidence_thresh,
+                           float nms_thresh, std::vector<Detection> *results) {
   int detection_size = sizeof(Detection) / sizeof(float);
   std::map<float, std::vector<Detection>> detection_map;
 
-  for (int i = 0; i < output[0] && i < kMaxNumOutputBbox; i++) {
+  for (int i = 0; i < (*cpu_input)[0] && i < kMaxNumOutputBbox; i++) {
     // deletes all boxes with confidence less than confidence threshold
     // set to 0.1 in config.h
-    if (output[1 + detection_size * i + 4] <= confidence_thresh) {
+    if ((*cpu_input)[1 + detection_size * i + 4] <= confidence_thresh) {
       continue;
     }
 
     Detection detection;
-    memcpy(&detection, &output[1 + detection_size * i],
+    memcpy(&detection, &(*cpu_input)[1 + detection_size * i],
            detection_size * sizeof(float));
 
     if (detection_map.count(detection.class_id) == 0) {
@@ -129,13 +129,12 @@ void ApplyNonMaxSuppresion(std::vector<Detection> *results, float *output,
 }
 
 void ApplyBatchNonMaxSuppression(
-    std::vector<std::vector<Detection>> *result_batch, float *output,
-    int batch_size, int output_size, float confidence_thresh,
-    float nms_thresh) {
+    float *cpu_input, int batch_size, int output_size, float confidence_thresh,
+    float nms_thresh, std::vector<std::vector<Detection>> *result_batch) {
   result_batch->resize(batch_size);
 
   for (int i = 0; i < batch_size; i++) {
-    ApplyNonMaxSuppresion(&(*result_batch)[i], &output[i * output_size],
+    ApplyNonMaxSuppresion(&(*result_batch)[i], &(*cpu_input)[i * output_size],
                           confidence_thresh, nms_thresh);
   }
 }

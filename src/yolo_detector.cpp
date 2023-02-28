@@ -120,7 +120,7 @@ int ReadDirFiles(const char *directory_name,
   return 0;
 }
 
-} //  namespace
+}  //  namespace
 
 YoloDetector::YoloDetector() {}
 
@@ -154,7 +154,8 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
   CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(gpu_output_buffer),
                         kBatchSize * kOutputSize * sizeof(float)));
 
-  *cpu_output_buffer = new float[kBatchSize * kOutputSize];
+  std::vector<float> cpu_output_vector(kBatchSize * kOutputSize);
+  *cpu_output_buffer = cpu_output_vector.data();
 }
 
 void YoloDetector::RunInference(IExecutionContext *context,
