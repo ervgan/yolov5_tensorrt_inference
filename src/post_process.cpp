@@ -91,15 +91,15 @@ void ApplyNonMaxSuppresion(float *cpu_input, float confidence_thresh,
   int detection_size = sizeof(Detection) / sizeof(float);
   std::map<float, std::vector<Detection>> detection_map;
 
-  for (int i = 0; i < (*cpu_input)[0] && i < kMaxNumOutputBbox; i++) {
+  for (int i = 0; i < cpu_input[0] && i < kMaxNumOutputBbox; i++) {
     // deletes all boxes with confidence less than confidence threshold
     // set to 0.1 in config.h
-    if ((*cpu_input)[1 + detection_size * i + 4] <= confidence_thresh) {
+    if (cpu_input[1 + detection_size * i + 4] <= confidence_thresh) {
       continue;
     }
 
     Detection detection;
-    memcpy(&detection, &(*cpu_input)[1 + detection_size * i],
+    memcpy(&detection, &cpu_input[1 + detection_size * i],
            detection_size * sizeof(float));
 
     if (detection_map.count(detection.class_id) == 0) {
@@ -134,7 +134,7 @@ void ApplyBatchNonMaxSuppression(
   result_batch->resize(batch_size);
 
   for (int i = 0; i < batch_size; i++) {
-    ApplyNonMaxSuppresion(&(*result_batch)[i], &(*cpu_input)[i * output_size],
+    ApplyNonMaxSuppresion(&(*result_batch)[i], &cpu_input[i * output_size],
                           confidence_thresh, nms_thresh);
   }
 }

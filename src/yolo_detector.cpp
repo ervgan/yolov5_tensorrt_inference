@@ -128,7 +128,6 @@ YoloDetector::~YoloDetector() {
   cudaStreamDestroy(stream_);
   CUDA_CHECK(cudaFree(gpu_buffers_[0]));
   CUDA_CHECK(cudaFree(gpu_buffers_[1]));
-  delete[] cpu_output_buffer_;
   CudaPreprocessDestroy();
   // Destroy the engine
   context_->destroy();
