@@ -134,8 +134,8 @@ void ApplyBatchNonMaxSuppression(
   result_batch->resize(batch_size);
 
   for (int i = 0; i < batch_size; i++) {
-    ApplyNonMaxSuppresion(&(*result_batch)[i], &cpu_input[i * output_size],
-                          confidence_thresh, nms_thresh);
+    ApplyNonMaxSuppresion(&cpu_input[i * output_size], confidence_thresh,
+                          nms_thresh, &(*result_batch)[i]);
   }
 }
 
