@@ -128,7 +128,6 @@ YoloDetector::~YoloDetector() {
   cudaStreamDestroy(stream_);
   CUDA_CHECK(cudaFree(gpu_buffers_[0]));
   CUDA_CHECK(cudaFree(gpu_buffers_[1]));
-  delete[] cpu_output_buffer_;
   CudaPreprocessDestroy();
   // Destroy the engine
   context_->destroy();
@@ -154,7 +153,8 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
   CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(gpu_output_buffer),
                         kBatchSize * kOutputSize * sizeof(float)));
 
-  *cpu_output_buffer = new float[kBatchSize * kOutputSize];
+  std::vector<float> cpu_output_vector(kBatchSize * kOutputSize);
+  *cpu_output_buffer_ = cpu_output_vector.data();
 }
 
 void YoloDetector::RunInference(IExecutionContext *context,
