@@ -12,7 +12,7 @@ void ApplyNonMaxSuppresion(float *cpu_input, float confidence_tresh,
 
 void ApplyBatchNonMaxSuppression(
     float *cpu_input, int batch_size, int output_size, float confidence_tresh,
-    float nms_thresh, std::vector<std::vector<Detection>> *batch_result);
+    float nms_thresh, std::vector<std::vector<Detection>> *result_batch);
 
 void DrawBox(const std::vector<cv::Mat> &image_batch,
              std::vector<std::vector<Detection>> *result_batch);
