@@ -154,7 +154,7 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine *engine,
   CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(gpu_output_buffer),
                         kBatchSize * kOutputSize * sizeof(float)));
 
-  *cpu_output_buffer = new std::vector<float>(kBatchSize * kOutputSize);
+  *cpu_output_buffer = new std::vector<float>(kBatchSize * kOutputSize).data();
 }
 
 void YoloDetector::RunInference(IExecutionContext *context,
