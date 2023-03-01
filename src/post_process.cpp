@@ -134,7 +134,7 @@ void ApplyBatchNonMaxSuppression(
     float nms_thresh, std::vector<std::vector<Detection>> *result_batch) {
   result_batch->resize(batch_size);
 
-  for (int i = 0; i < batch_size; ++i {
+  for (int i = 0; i < batch_size; ++i) {
     ApplyNonMaxSuppresion(&cpu_input[i * output_size], confidence_thresh,
                           nms_thresh, &(*result_batch)[i]);
   }
