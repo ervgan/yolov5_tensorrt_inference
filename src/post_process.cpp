@@ -110,7 +110,7 @@ void ApplyNonMaxSuppresion(float *cpu_input, float confidence_thresh,
     detection_map[detection.class_id].push_back(detection);
   }
 
-  for (auto it = detection_map.begin(); it != detection_map.end(); ++it {
+  for (auto it = detection_map.begin(); it != detection_map.end(); ++it) {
     auto &detections = it->second;
     std::sort(detections.begin(), detections.end(), compare);
 
