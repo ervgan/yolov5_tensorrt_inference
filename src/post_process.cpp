@@ -49,41 +49,42 @@ cv::Rect ScaleRectangle(float bounding_box[4], float scale) {
 }  // namespace
 
 cv::Rect CreateRectangle(const cv::Mat &image, float bounding_box[4]) {
-  float rectangle_top_left_x, rectangle_bottom_right_x, rectangle_top_left_y,
-      rectangle_bottom_right_y;
+  float rectangle_bottom_left_x, rectangle_top_right_x, rectangle_bottom_left_y,
+      rectangle_top_right_y;
   const float width_ratio = kInputW / (image.cols * 1.0);
   const float height_ratio = kInputH / (image.rows * 1.0);
+  const float height_adjustment = (kInputH - width_ratio * image.rows) / 2;
+  const float width_adjustment = (kInputW - height_ratio * image.cols) / 2;
 
   if (height_ratio > width_ratio) {
-    rectangle_top_left_x = bounding_box[0] - bounding_box[2] / 2.f;
-    rectangle_bottom_right_x = bounding_box[0] + bounding_box[2] / 2.f;
-    rectangle_top_left_y = bounding_box[1] - bounding_box[3] / 2.f -
-                           (kInputH - width_ratio * image.rows) / 2;
-    rectangle_bottom_right_y = bounding_box[1] + bounding_box[3] / 2.f -
-                               (kInputH - width_ratio * image.rows) / 2;
-    rectangle_top_left_x = rectangle_top_left_x / width_ratio;
-    rectangle_bottom_right_x = rectangle_bottom_right_x / width_ratio;
-    rectangle_top_left_y = rectangle_top_left_y / width_ratio;
-    rectangle_bottom_right_y = rectangle_bottom_right_y / width_ratio;
-
+    rectangle_bottom_left_x = bounding_box[0] - bounding_box[2] / 2.f;
+    rectangle_top_right_x = bounding_box[0] + bounding_box[2] / 2.f;
+    rectangle_bottom_left_y =
+        bounding_box[1] - bounding_box[3] / 2.f - height_adjustment;
+    rectangle_top_right_y =
+        bounding_box[1] + bounding_box[3] / 2.f - height_adjustment;
+    rectangle_bottom_left_x = rectangle_bottom_left_x / width_ratio;
+    rectangle_top_right_x = rectangle_top_right_x / width_ratio;
+    rectangle_bottom_left_y = rectangle_bottom_left_y / width_ratio;
+    rectangle_top_right_y = rectangle_top_right_y / width_ratio;
   } else {
-    rectangle_top_left_x = bounding_box[0] - bounding_box[2] / 2.f -
-                           (kInputW - height_ratio * image.cols) / 2;
-    rectangle_bottom_right_x = bounding_box[0] + bounding_box[2] / 2.f -
-                               (kInputW - height_ratio * image.cols) / 2;
-    rectangle_top_left_y = bounding_box[1] - bounding_box[3] / 2.f;
-    rectangle_bottom_right_y = bounding_box[1] + bounding_box[3] / 2.f;
-    rectangle_top_left_x = rectangle_top_left_x / height_ratio;
-    rectangle_bottom_right_x = rectangle_bottom_right_x / height_ratio;
-    rectangle_top_left_y = rectangle_top_left_y / height_ratio;
-    rectangle_bottom_right_y = rectangle_bottom_right_y / height_ratio;
+    rectangle_bottom_left_x =
+        bounding_box[0] - bounding_box[2] / 2.f - width_adjustment;
+    rectangle_top_right_x =
+        bounding_box[0] + bounding_box[2] / 2.f - width_adjustment;
+    rectangle_bottom_left_y = bounding_box[1] - bounding_box[3] / 2.f;
+    rectangle_top_right_y = bounding_box[1] + bounding_box[3] / 2.f;
+    rectangle_bottom_left_x = rectangle_bottom_left_x / height_ratio;
+    rectangle_top_right_x = rectangle_top_right_x / height_ratio;
+    rectangle_bottom_left_y = rectangle_bottom_left_y / height_ratio;
+    rectangle_top_right_y = rectangle_top_right_y / height_ratio;
   }
 
-  return cv::Rect(round(rectangle_top_left_x), round(rectangle_top_left_y),
-                  round(rectangle_bottom_right_x - rectangle_top_left_x),
-                  round(rectangle_bottom_right_y - rectangle_top_left_y));
+  return cv::Rect(round(rectangle_bottom_left_x),
+                  round(rectangle_bottom_left_y),
+                  round(rectangle_top_right_x - rectangle_bottom_left_x),
+                  round(rectangle_top_right_y - rectangle_bottom_left_y));
 }
-
 // uses intersection_over_union to delete duplicate bounding boxes
 // for the same detection
 void ApplyNonMaxSuppresion(float *cpu_input, float confidence_thresh,
