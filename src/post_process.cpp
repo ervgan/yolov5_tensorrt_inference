@@ -92,7 +92,7 @@ void ApplyNonMaxSuppresion(float *cpu_input, float confidence_thresh,
   int detection_size = sizeof(Detection) / sizeof(float);
   std::map<float, std::vector<Detection>> detection_map;
 
-  for (int i = 0; i < cpu_input[0] && i < kMaxNumOutputBbox; i++) {
+  for (int i = 0; i < cpu_input[0] && i < kMaxNumOutputBbox; ++i) {
     // deletes all boxes with confidence less than confidence threshold
     // set to 0.1 in config.h
     if (cpu_input[1 + detection_size * i + 4] <= confidence_thresh) {
@@ -110,7 +110,7 @@ void ApplyNonMaxSuppresion(float *cpu_input, float confidence_thresh,
     detection_map[detection.class_id].push_back(detection);
   }
 
-  for (auto it = detection_map.begin(); it != detection_map.end(); it++) {
+  for (auto it = detection_map.begin(); it != detection_map.end(); ++it {
     auto &detections = it->second;
     std::sort(detections.begin(), detections.end(), compare);
 
@@ -134,7 +134,7 @@ void ApplyBatchNonMaxSuppression(
     float nms_thresh, std::vector<std::vector<Detection>> *result_batch) {
   result_batch->resize(batch_size);
 
-  for (int i = 0; i < batch_size; i++) {
+  for (int i = 0; i < batch_size; ++i {
     ApplyNonMaxSuppresion(&cpu_input[i * output_size], confidence_thresh,
                           nms_thresh, &(*result_batch)[i]);
   }
@@ -142,11 +142,11 @@ void ApplyBatchNonMaxSuppression(
 
 void DrawBox(const std::vector<cv::Mat> &image_batch,
              std::vector<std::vector<Detection>> *result_batch) {
-  for (size_t i = 0; i < image_batch.size(); i++) {
+  for (size_t i = 0; i < image_batch.size(); ++i) {
     std::vector<Detection> &result = (*result_batch)[i];
     cv::Mat image = image_batch[i];
 
-    for (size_t j = 0; j < result.size(); j++) {
+    for (size_t j = 0; j < result.size(); ++j) {
       cv::Rect rectangle = CreateRectangle(image, result[j].bounding_box);
       cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
       int rounded_confidence =
