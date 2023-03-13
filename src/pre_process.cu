@@ -6,6 +6,7 @@
 static uint8_t *image_buffer_host = nullptr;
 static uint8_t *image_buffer_device = nullptr;
 
+namespace {
 struct AffineMatrix {
   float value[6];
 };
@@ -168,6 +169,7 @@ void CudaPreprocess(uint8_t *image, int image_width, int image_height,
       destination_image_buffer, processing_image_width, processing_image_height,
       128, invert_scalar, jobs);
 }
+}  // namespace
 
 void CudaPreprocessBatch(std::vector<cv::Mat> *image_batch, float *image_buffer,
                          int processing_image_width,
