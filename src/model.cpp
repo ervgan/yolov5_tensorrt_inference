@@ -32,7 +32,7 @@ std::map<std::string, Weights> LoadWeights(const std::string &file) {
   CHECK(count > 0 && "Invalid weight map file.");
 
   // get weights for each
-  while (count--) {
+  for (int32_t i = 0; i < count; i++) {
     Weights weight{DataType::kFLOAT, nullptr, 0};
     uint32_t size;
     // Read name and type of blob
