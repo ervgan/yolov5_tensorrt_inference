@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
 
 #include "../include/config.h"
 #include "../include/yolo_layer.h"
