@@ -4,7 +4,12 @@
 
 #include <string>
 
-using nvinfer1::using nvinfer1::ActivationType;
+using nvinfer1::DataType;
+using nvinfer1::IBuilder;
+using nvinfer1::IBuilderConfig;
+using nvinfer1::ICudaEngine;
+
+using nvinfer1::ActivationType;
 using nvinfer1::BuilderFlag;
 using nvinfer1::DataType;
 using nvinfer1::Dims3;
