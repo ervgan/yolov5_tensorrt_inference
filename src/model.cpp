@@ -48,7 +48,7 @@ std::map<std::string, Weights> LoadWeights(const std::string &file) {
       input >> std::hex >> weights[x];
     }
 
-    weight.values = weights;
+    weight.values = std::move(weights);
     weight.count = size;
     weight_map[name] = weight;
   }
