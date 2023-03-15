@@ -3,9 +3,9 @@
 
 using yolov5_inference::kGpuId;
 using yolov5_inference::States;
+using yolov5_inference::YoloDetector;
 using yolov5_inference::devel::DrawDetections;
 using yolov5_inference::devel::ProcessImages;
-using yolov5_inference::YoloDetector::Init;
 
 int main(int argc, char** argv) {
   yolov5_inference::YoloDetector yoloDetector;
