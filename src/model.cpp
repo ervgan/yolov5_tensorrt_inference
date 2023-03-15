@@ -106,7 +106,7 @@ IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
 
   for (int i = 0; i < kLen; i++) {
     scale_values[i] = gamma[i] / sqrt(var[i] + eps);
-    shift_values[i] = beta[i] - mean[i] * gamma[i] / sqrt(var[i] + eps);
+    shift_values[i] = beta[i] - mean[i] * scale_values[i];
     power_values[i] = 1.0;
   }
 
