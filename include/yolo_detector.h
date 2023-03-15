@@ -72,6 +72,11 @@ class YoloDetector {
   std::vector<std::string> file_names_;
 };
 
+namespace devel {
+void DrawDetections(const YoloDetector& detector);
+void ProcessImages(const YoloDetector& detector);
+}  // namespace devel
+
 }  // namespace yolov5_inference
 
 #endif  // YOLOV5_INFERENCE_YOLO_DETECTOR_H_
