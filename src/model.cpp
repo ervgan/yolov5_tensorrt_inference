@@ -522,7 +522,7 @@ ICudaEngine* BuildDetectionEngine(unsigned int max_batch_size,
   network->destroy();
 
   // Delete objects
-  for (auto& weights : weightMap) {
+  for (auto& weights : weight_map) {
     delete weights.second.values;
   }
 
