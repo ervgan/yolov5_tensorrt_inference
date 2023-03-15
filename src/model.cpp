@@ -101,27 +101,17 @@ IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
   const int kLen = (*weight_map)[layer_name + ".running_var"].count;
 
   auto scale_values = std::make_unique<float[]>(kLen);
-
-  for (int i = 0; i < kLen; i++) {
-    scale_values[i] = gamma[i] / sqrt(var[i] + eps);
-  }
-
-  Weights scale{DataType::kFLOAT, scale_values.get(), kLen};
-
   auto shift_values = std::make_unique<float[]>(kLen);
-
-  for (int i = 0; i < kLen; i++) {
-    shift_values[i] = beta[i] - mean[i] * gamma[i] / sqrt(var[i] + eps);
-  }
-
-  Weights shift{DataType::kFLOAT, shift_values.get(), kLen};
-
   auto power_values = std::make_unique<float[]>(kLen);
 
   for (int i = 0; i < kLen; i++) {
+    scale_values[i] = gamma[i] / sqrt(var[i] + eps);
+    shift_values[i] = beta[i] - mean[i] * gamma[i] / sqrt(var[i] + eps);
     power_values[i] = 1.0;
   }
 
+  Weights scale{DataType::kFLOAT, scale_values.get(), kLen};
+  Weights shift{DataType::kFLOAT, shift_values.get(), kLen};
   Weights power{DataType::kFLOAT, power_values.get(), kLen};
 
   (*weight_map)[layer_name + ".scale"] = scale;
