@@ -15,6 +15,8 @@
 // Source code for NvInferRuntimeCommon.h:
 // https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/_nv_infer_runtime_common_8h_source.html
 
+using yolov5_inference::kIgnoreThresh;
+
 namespace read_write {
 template <typename T>
 void write(char** buffer, const T& value) {
