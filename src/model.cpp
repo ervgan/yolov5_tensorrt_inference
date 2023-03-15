@@ -117,9 +117,9 @@ IScaleLayer* AddBatchNorm2D(INetworkDefinition* network,
     power_values[i] = 1.0;
   }
 
-  Weights scale{DataType::kFLOAT, scale_values.get(), kLen};
-  Weights shift{DataType::kFLOAT, shift_values.get(), kLen};
-  Weights power{DataType::kFLOAT, power_values.get(), kLen};
+  Weights scale{DataType::kFLOAT, scale_values.release(), kLen};
+  Weights shift{DataType::kFLOAT, shift_values.release(), kLen};
+  Weights power{DataType::kFLOAT, power_values.release(), kLen};
 
   (*weight_map)[layer_name + ".scale"] = scale;
   (*weight_map)[layer_name + ".shift"] = shift;
@@ -520,11 +520,6 @@ ICudaEngine* BuildDetectionEngine(unsigned int max_batch_size,
 
   // Don't need the network any more
   network->destroy();
-
-  // Delete objects
-  for (auto& weights : weight_map) {
-    delete weights.second.values;
-  }
 
   return engine;
 }
