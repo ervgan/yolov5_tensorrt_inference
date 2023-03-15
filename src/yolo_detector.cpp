@@ -252,7 +252,7 @@ int YoloDetector::Init(int argc, char** argv) {
   return static_cast<int>(States::kRunDetector);
 }
 
-void ProcessImages() {
+void YoloDetector::ProcessImages() {
   // Read images from directory
   // This should read one frame at a time for deployment
   if (ReadDirFiles(image_directory_.c_str(), &file_names_) < 0) {
@@ -262,7 +262,7 @@ void ProcessImages() {
 }
 
 // This method should be modified to receive incoming frames from live video
-void DrawDetections(const YoloDetector& detector) {
+void YoloDetector::DrawDetections() {
   // store images and image names in vectors
   for (size_t i = 0; i < file_names_.size(); i += kBatchSize) {
     std::vector<cv::Mat> image_batch;
