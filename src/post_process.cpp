@@ -1,5 +1,7 @@
 #include "../include/post_process.h"
 
+#include <glog/logging.h>
+
 #include <sstream>
 
 namespace yolov5_inference {
@@ -135,8 +137,8 @@ void ApplyBatchNonMaxSuppression(
   CHECK_NOTNULL(cpu_buffer);
   result_batch->resize(batch_size);
   for (int i = 0; i < batch_size; ++i) {
-    ApplyNonMaxSuppresion(&(*result_batch)[i], &cpu_buffer[i * output_size],
-                          confidence_thresh, nms_thresh);
+    ApplyNonMaxSuppresion(&cpu_buffer[i * output_size], confidence_thresh,
+                          nms_thresh, &(*result_batch)[i]);
   }
 }
 
