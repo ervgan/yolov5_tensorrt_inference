@@ -101,7 +101,7 @@ class YoloLayerPlugin : public IPluginV2IOExt {
                        int nb_output) TRT_NOEXCEPT override;
 
   // Detach the plugin object from its execution context
-  void YoloLayerPlugin::detachFromContext() TRT_NOEXCEPT {}
+  void detachFromContext() TRT_NOEXCEPT {}
 
  private:
   void ForwardGpu(const float* const* inputs, float* output,
