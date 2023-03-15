@@ -3,6 +3,8 @@
 
 #include "../include/config.h"
 
+using yolov5_inference::kNumAnchor;
+
 struct YoloKernel {
   int width;
   int height;
