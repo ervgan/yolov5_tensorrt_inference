@@ -3,8 +3,9 @@
 #include "../include/cuda_utils.h"
 #include "../include/pre_process.h"
 
-static uint8_t *image_buffer_host = nullptr;
-static uint8_t *image_buffer_device = nullptr;
+namespace yolov5_inference {
+static uint8_t* image_buffer_host = nullptr;
+static uint8_t* image_buffer_device = nullptr;
 
 namespace {
 struct AffineMatrix {
@@ -13,13 +14,14 @@ struct AffineMatrix {
 
 // cuda implementation of openCV cv::warpAffine method
 // performs an affine transformation to the input image
-__global__ void WarpAffineKernel(uint8_t *image_buffer, int image_line_size,
+// and performs HWC2CHW conversion in addition
+__global__ void WarpAffineKernel(uint8_t* image_buffer, int image_line_size,
                                  int image_width, int image_height,
-                                 float *destination_image_buffer,
                                  int processing_image_width,
                                  int processing_image_height,
                                  uint8_t constant_rgb_value,
-                                 AffineMatrix invert_scalar, int image_edge) {
+                                 AffineMatrix invert_scalar, int image_edge,
+                                 float* output_gpu_image_buffer) {
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
   if (thread_id >= image_edge) return;
 
@@ -66,10 +68,10 @@ __global__ void WarpAffineKernel(uint8_t *image_buffer, int image_line_size,
 
     float weight_pixel_1 = hy * hx, weight_pixel_2 = hy * lx,
           weight_pixel_3 = ly * hx, weight_pixel_4 = ly * lx;
-    uint8_t *color_pixel_1 = constant_rgb_values;
-    uint8_t *color_pixel_2 = constant_rgb_values;
-    uint8_t *color_pixel_3 = constant_rgb_values;
-    uint8_t *color_pixel_4 = constant_rgb_values;
+    uint8_t* color_pixel_1 = constant_rgb_values;
+    uint8_t* color_pixel_2 = constant_rgb_values;
+    uint8_t* color_pixel_3 = constant_rgb_values;
+    uint8_t* color_pixel_4 = constant_rgb_values;
 
     if (y_low >= 0) {
       if (x_low >= 0)
@@ -114,11 +116,11 @@ __global__ void WarpAffineKernel(uint8_t *image_buffer, int image_line_size,
 
   // rgbrgbrgb to rrrgggbbb
   int image_area = processing_image_width * processing_image_height;
-  float *color_0_pointer = destination_image_buffer +
+  float* color_0_pointer = output_gpu_image_buffer +
                            destination_y * processing_image_width +
                            destination_x;
-  float *color_1_pointer = color_0_pointer + image_area;
-  float *color_2_pointer = color_1_pointer + image_area;
+  float* color_1_pointer = color_0_pointer + image_area;
+  float* color_2_pointer = color_1_pointer + image_area;
   *color_0_pointer = color_0;
   *color_1_pointer = color_1;
   *color_2_pointer = color_2;
@@ -126,9 +128,9 @@ __global__ void WarpAffineKernel(uint8_t *image_buffer, int image_line_size,
 
 // preprocess images by creating the affine tranformation
 // and applying it to the original image by calling warpAffineKernel
-void CudaPreprocess(uint8_t *image, int image_width, int image_height,
-                    float *destination_image_buffer, int processing_image_width,
-                    int processing_image_height, cudaStream_t stream) {
+void CudaPreprocess(uint8_t* image, int image_width, int image_height,
+                    int processing_image_width, int processing_image_height,
+                    cudaStream_t stream, float* output_gpu_image_buffer) {
   int image_size = image_width * image_height * 3;
   // copy data to CPU pinned memory
   memcpy(image_buffer_host, image, image_size);
@@ -160,27 +162,31 @@ void CudaPreprocess(uint8_t *image, int image_width, int image_height,
   memcpy(invert_scalar.value, invert_scalar_matrix.ptr<float>(0),
          sizeof(invert_scalar.value));
 
+  // number of pixels to process = 640*640
   int jobs = processing_image_height * processing_image_width;
+  // equivalent to a 2D thread block of size 16*16 dim3 (16,16,1)
   int threads = 256;
+  // calculate number of blocks to be able to process all jobs
   int blocks = ceil(jobs / static_cast<float>(threads));
 
   WarpAffineKernel<<<blocks, threads, 0, stream>>>(
       image_buffer_device, image_width * 3, image_width, image_height,
-      destination_image_buffer, processing_image_width, processing_image_height,
-      128, invert_scalar, jobs);
+      processing_image_width, processing_image_height, 128, invert_scalar, jobs,
+      output_gpu_image_buffer);
 }
 }  // namespace
 
-void CudaPreprocessBatch(std::vector<cv::Mat> *image_batch, float *image_buffer,
+void CudaPreprocessBatch(std::vector<cv::Mat>* image_batch,
                          int processing_image_width,
-                         int processing_image_height, cudaStream_t stream) {
+                         int processing_image_height, cudaStream_t stream,
+                         float* output_gpu_image_buffer) {
   int processing_image_size =
       processing_image_width * processing_image_height * 3;
   for (size_t i = 0; i < image_batch->size(); ++i) {
     CudaPreprocess((*image_batch)[i].ptr(), (*image_batch)[i].cols,
-                   (*image_batch)[i].rows,
-                   &image_buffer[processing_image_size * i],
-                   processing_image_width, processing_image_height, stream);
+                   (*image_batch)[i].rows, processing_image_width,
+                   processing_image_height, stream,
+                   &output_gpu_image_buffer[processing_image_size * i]);
     // synchronizes host CPU thread and the execution of a CUDA stream (sequence
     // of tasks)
     CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -189,10 +195,10 @@ void CudaPreprocessBatch(std::vector<cv::Mat> *image_batch, float *image_buffer,
 
 void CudaPreprocessInit(int max_image_size) {
   // prepare input data in  CPU pinned memory
-  CUDA_CHECK(cudaMallocHost(reinterpret_cast<void **>(&image_buffer_host),
+  CUDA_CHECK(cudaMallocHost(reinterpret_cast<void**>(&image_buffer_host),
                             max_image_size * 3));
   // prepare input data in GPU device memory
-  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&image_buffer_device),
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&image_buffer_device),
                         max_image_size * 3));
 }
 
@@ -200,3 +206,5 @@ void CudaPreprocessDestroy() {
   CUDA_CHECK(cudaFree(image_buffer_device));
   CUDA_CHECK(cudaFreeHost(image_buffer_host));
 }
+
+}  // namespace yolov5_inference

@@ -1,16 +1,18 @@
-#pragma once
+#ifndef YOLOV5_INFERENCE_CONFIG_H_
+#define YOLOV5_INFERENCE_CONFIG_H_
 
 /* --------------------------------------------------------
  * These configs are related to tensorrt model, if these are changed,
  * please re-compile and re-serialize the tensorrt model.
  * --------------------------------------------------------*/
 
-#define USE_FP16 // stensorRT uses FP16
+#define USE_FP16  // tensorRT uses FP16
 
+namespace yolov5_inference {
 // These are used to define input/output tensor names,
 // you can set them to whatever you want.
-static const char *kInputTensorName = "data";
-static const char *kOutputTensorName = "prob";
+static const char* kInputTensorName = "data";
+static const char* kOutputTensorName = "prob";
 
 // Detection model' number of classes
 static constexpr int kNumClass = 1;
@@ -44,3 +46,12 @@ static const int kGpuId = 0;
 
 // If your image size is larger than 4096 * 3112, please increase this value
 static const int kMaxInputImageSize = 4096 * 3112;
+
+enum class States {
+  kBuildDetector = 0,  // Serializing file to .engine
+  kRunDetector = 1,    // Using .engine for detection
+};
+
+}  // namespace yolov5_inference
+
+#endif  // YOLOV5_INFERENCE_CONFIG_H_

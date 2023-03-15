@@ -1,5 +1,5 @@
-#ifndef INCLUDE_MACROS_H_
-#define INCLUDE_MACROS_H_
+#ifndef YOLOV5_INFERENCE_MACROS_H_
+#define YOLOV5_INFERENCE_MACROS_H_
 
 #include <NvInfer.h>
 
@@ -11,4 +11,4 @@
 #define TRT_CONST_ENQUEUE
 #endif
 
-#endif  // INCLUDE_MACROS_H_
+#endif  // YOLOV5_INFERENCE_MACROS_H_
