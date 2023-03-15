@@ -11,8 +11,8 @@ int main(int argc, char** argv) {
   int state = yoloDetector.Init(argc, argv);
 
   if (state == static_cast<int>(States::kRunDetector)) {
-    YoloDetector::ProcessImages(yoloDetector);
-    YoloDetector::DrawDetections(yoloDetector);
+    yoloDetector.ProcessImages();
+    yoloDetector.DrawDetections();
   }
 
   return 0;
