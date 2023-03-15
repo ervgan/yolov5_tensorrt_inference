@@ -41,7 +41,7 @@ std::map<std::string, Weights> LoadWeights(const std::string& file) {
     // Read name and type of blob
     std::string name;
     input >> name >> std::dec >> size;
-    CHECK(input.fail() && "Error reading name and size from wts file");
+    CHECK(!input.fail() && "Error reading name and size from wts file");
     weight.type = DataType::kFLOAT;
     // Load blob
     auto weights = std::make_unique<uint32_t[]>(size);
@@ -50,7 +50,7 @@ std::map<std::string, Weights> LoadWeights(const std::string& file) {
       input >> std::hex >> weights[x];
     }
 
-    weight.values = weights.get();
+    weight.values = weights.release();
     weight.count = size;
     weight_map[name] = weight;
   }
@@ -520,6 +520,11 @@ ICudaEngine* BuildDetectionEngine(unsigned int max_batch_size,
 
   // Don't need the network any more
   network->destroy();
+
+  // Delete objects
+  for (auto& weights : weightMap) {
+    delete weights.second.values;
+  }
 
   return engine;
 }
