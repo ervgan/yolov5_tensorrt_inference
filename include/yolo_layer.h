@@ -19,7 +19,7 @@
 // https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/_nv_infer_runtime_common_8h_source.html
 
 namespace nvinfer1 {
-class API YoloLayerPlugin : public IPluginV2IOExt {
+class YoloLayerPlugin : public IPluginV2IOExt {
  public:
   YoloLayerPlugin(int class_count, int neural_net_width, int neural_net_height,
                   int max_output, bool is_segmentation,
@@ -118,7 +118,7 @@ class API YoloLayerPlugin : public IPluginV2IOExt {
   void** anchor_;
 };
 
-class API YoloPluginCreator : public IPluginCreator {
+class YoloPluginCreator : public IPluginCreator {
  public:
   YoloPluginCreator();
 
