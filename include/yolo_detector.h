@@ -51,6 +51,11 @@ class YoloDetector {
   void RunInference(IExecutionContext* context, const cudaStream_t& stream,
                     void** gpu_buffers, float* output, int batch_size);
 
+  friend namespace devel {
+    void DrawDetections(const YoloDetector& detector);
+    void ProcessImages(const YoloDetector& detector);
+  }  // namespace devel
+
  private:
   std::string wts_file_ = "";
   std::string engine_file_ = "";
@@ -66,11 +71,6 @@ class YoloDetector {
   // this will not be needed for live detection
   std::vector<std::string> file_names_;
 };
-
-namespace devel {
-void DrawDetections(const YoloDetector& detector);
-void ProcessImages(const YoloDetector& detector);
-}  // namespace devel
 
 }  // namespace yolov5_inference
 

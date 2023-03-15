@@ -279,8 +279,8 @@ void DrawDetections(const YoloDetector& detector) {
     }
 
     // Preprocess
-    CudaPreprocessBatch(&image_batch, detector.gpu_buffers_[0], kInputW,
-                        kInputH, detector.stream_);
+    CudaPreprocessBatch(&image_batch, kInputW, kInputH, detector.stream_,
+                        detector.gpu_buffers_[0]);
     // Run inference
     auto start = std::chrono::system_clock::now();
     RunInference(detector.context_, detector.stream_,
