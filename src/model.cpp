@@ -89,6 +89,9 @@ IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
                             std::map<std::string, Weights> *weight_map,
                             ITensor *input, const std::string &layer_name,
                             float eps) {
+  CHECK_NOTNULL(network);
+  CHECK_NOTNULL(weight_map);
+  CHECK_NOTNULL(input);
   const float *gamma = reinterpret_cast<const float *>(
       (*weight_map)[layer_name + ".weight"].values);
   const float *beta = reinterpret_cast<const float *>(
@@ -130,6 +133,9 @@ ILayer *CreateConvoLayer(INetworkDefinition *network,
                          ITensor *input, int output, int kernel_size,
                          int stride, int nb_groups,
                          const std::string &layer_name) {
+  CHECK_NOTNULL(network);
+  CHECK_NOTNULL(weight_map);
+  CHECK_NOTNULL(input);
   Weights empty_wts{DataType::kFLOAT, nullptr, 0};
   const int kPadding = kernel_size / 3;
   IConvolutionLayer *convo_layer = network->addConvolutionNd(
@@ -162,6 +168,9 @@ ILayer *CreateBottleneckLayer(INetworkDefinition *network,
                               ITensor *input, int intput_channel,
                               int output_channel, bool shortcut, int nb_groups,
                               float expansion, const std::string &layer_name) {
+  CHECK_NOTNULL(network);
+  CHECK_NOTNULL(weight_map);
+  CHECK_NOTNULL(input);
   const int kOutputMaps1 =
       static_cast<int>(static_cast<float>(output_channel) * expansion);
   const int kKernelSize1 = 1;
@@ -195,6 +204,9 @@ ILayer *CreateC3Bottleneck(INetworkDefinition *network,
                            int output_channel, int n, bool shortcut,
                            int nb_groups, float expansion,
                            const std::string &layer_name) {
+  CHECK_NOTNULL(network);
+  CHECK_NOTNULL(weight_map);
+  CHECK_NOTNULL(input);
   int hidden_channel =
       static_cast<int>(static_cast<float>(output_channel) * expansion);
 
@@ -228,6 +240,9 @@ ILayer *CreateSPPFLayer(INetworkDefinition *network,
                         std::map<std::string, Weights> *weight_map,
                         ITensor *input, int input_channel, int output_channel,
                         int dimensions, std::string layer_name) {
+  CHECK_NOTNULL(network);
+  CHECK_NOTNULL(weight_map);
+  CHECK_NOTNULL(input);
   int hidden_channels = input_channel / 2;
 
   auto convo_layer_1 =
@@ -263,6 +278,7 @@ ILayer *CreateSPPFLayer(INetworkDefinition *network,
 
 std::vector<std::vector<float>> getAnchors(
     std::map<std::string, Weights> *weight_map, const std::string &layer_name) {
+  CHECK_NOTNULL(weight_map);
   std::vector<std::vector<float>> anchors;
   Weights weights = (*weight_map)[layer_name + ".anchor_grid"];
   const int anchor_len = kNumAnchor * 2;
@@ -281,6 +297,8 @@ IPluginV2Layer *AddYoLoLayer(INetworkDefinition *network,
                              std::string layer_name,
                              std::vector<IConvolutionLayer *> dets,
                              bool is_segmentation = false) {
+  CHECK_NOTNULL(network);
+  CHECK_NOTNULL(weight_map);
   auto creator = getPluginRegistry()->getPluginCreator("YoloLayer_TRT", "1");
   auto anchors = getAnchors(weight_map, layer_name);
   PluginField plugin_fields[2];
@@ -334,6 +352,8 @@ ICudaEngine *BuildDetectionEngine(unsigned int max_batch_size,
                                   DataType dt, const float &depth_multiplier,
                                   const float &width_multiplier,
                                   const std::string &wts_file_name) {
+  CHECK_NOTNULL(builder);
+  CHECK_NOTNULL(config);
   INetworkDefinition *network = builder->createNetworkV2(0U);
 
   // Create input tensor of shape {3, kInputH, kInputW}
