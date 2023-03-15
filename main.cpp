@@ -4,17 +4,15 @@
 using yolov5_inference::kGpuId;
 using yolov5_inference::States;
 using yolov5_inference::YoloDetector;
-using yolov5_inference::devel::DrawDetections;
-using yolov5_inference::devel::ProcessImages;
 
 int main(int argc, char** argv) {
-  yolov5_inference::YoloDetector yoloDetector;
+  YoloDetector yoloDetector;
   cudaSetDevice(kGpuId);
   int state = yoloDetector.Init(argc, argv);
 
   if (state == static_cast<int>(States::kRunDetector)) {
-    ProcessImages(yoloDetector);
-    DrawDetections(yoloDetector);
+    YoloDetector::ProcessImages(yoloDetector);
+    YoloDetector::DrawDetections(yoloDetector);
   }
 
   return 0;
