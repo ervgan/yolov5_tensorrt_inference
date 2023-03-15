@@ -100,29 +100,29 @@ IScaleLayer *AddBatchNorm2D(INetworkDefinition *network,
 
   const int kLen = (*weight_map)[layer_name + ".running_var"].count;
 
-  float *scale_values = reinterpret_cast<float *>(malloc(sizeof(float) * kLen));
+  auto scale_values = std::make_unique<float[]>(kLen);
 
   for (int i = 0; i < kLen; i++) {
     scale_values[i] = gamma[i] / sqrt(var[i] + eps);
   }
 
-  Weights scale{DataType::kFLOAT, scale_values, kLen};
+  Weights scale{DataType::kFLOAT, scale_values.get(), kLen};
 
-  float *shift_values = reinterpret_cast<float *>(malloc(sizeof(float) * kLen));
+  auto shift_values = std::make_unique<float[]>(kLen);
 
   for (int i = 0; i < kLen; i++) {
     shift_values[i] = beta[i] - mean[i] * gamma[i] / sqrt(var[i] + eps);
   }
 
-  Weights shift{DataType::kFLOAT, shift_values, kLen};
+  Weights shift{DataType::kFLOAT, shift_values.get(), kLen};
 
-  float *power_values = reinterpret_cast<float *>(malloc(sizeof(float) * kLen));
+  auto power_values = std::make_unique<float[]>(kLen);
 
   for (int i = 0; i < kLen; i++) {
     power_values[i] = 1.0;
   }
 
-  Weights power{DataType::kFLOAT, power_values, kLen};
+  Weights power{DataType::kFLOAT, power_values.get(), kLen};
 
   (*weight_map)[layer_name + ".scale"] = scale;
   (*weight_map)[layer_name + ".shift"] = shift;
