@@ -186,8 +186,8 @@ void YoloDetector::SerializeEngine(unsigned int max_batch_size,
 
   // Close everything down
   engine->destroy();
-  builder->destroy();
   config->destroy();
+  builder->destroy();
   serialized_engine->destroy();
 }
 
