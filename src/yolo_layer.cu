@@ -281,7 +281,7 @@ __global__ void CallDetection(const float* input, float* output,
     // it ensures that the resulting values are still in reasonable range
 
     // find center_x of bounding_box detection at correct index of input tensor
-    detection->bounding_box[0] =
+    detection->bounding_box_px[0] =
         (col - 0.5f +
          2.0f * LogisticFunction(
                     current_input[thread_id + k * info_len_i * total_grid +
@@ -289,7 +289,7 @@ __global__ void CallDetection(const float* input, float* output,
         neural_net_width / yolo_width;
 
     // find center_y of bounding_box detection at correct index of input tensor
-    detection->bounding_box[1] =
+    detection->bounding_box_px[1] =
         (row - 0.5f +
          2.0f * LogisticFunction(
                     current_input[thread_id + k * info_len_i * total_grid +
@@ -297,25 +297,26 @@ __global__ void CallDetection(const float* input, float* output,
         neural_net_height / yolo_height;
 
     // find width of bounding_box detection at correct index of input tensor
-    detection->bounding_box[2] =
+    detection->bounding_box_px[2] =
         2.0f *
         LogisticFunction(current_input[thread_id + k * info_len_i * total_grid +
                                        2 * total_grid]);
     // bounding box width and height are relative to the anchor box
     // so this is needed to scale to width and height ot original image
-    detection->bounding_box[2] = detection->bounding_box[2] *
-                                 detection->bounding_box[2] * anchors[2 * k];
+    detection->bounding_box_px[2] = detection->bounding_box_px[2] *
+                                    detection->bounding_box_px[2] *
+                                    anchors[2 * k];
 
     // find height of bounding_box detection at correct index of input tensor
-    detection->bounding_box[3] =
+    detection->bounding_box_px[3] =
         2.0f *
         LogisticFunction(current_input[thread_id + k * info_len_i * total_grid +
                                        3 * total_grid]);
     // bounding box width and height are relative to the anchor box
     // so this is needed to scale to width and height ot original image
-    detection->bounding_box[3] = detection->bounding_box[3] *
-                                 detection->bounding_box[3] *
-                                 anchors[2 * k + 1];
+    detection->bounding_box_px[3] = detection->bounding_box_px[3] *
+                                    detection->bounding_box_px[3] *
+                                    anchors[2 * k + 1];
     detection->confidence = box_prob * max_cls_prob;
     detection->class_id = class_id;
 
