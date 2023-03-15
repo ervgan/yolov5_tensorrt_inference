@@ -22,7 +22,7 @@ namespace {
 // TensorRT wts weight files have a simple space delimited format :
 // [type] [size] <data x size in hex>
 std::map<std::string, Weights> LoadWeights(const std::string &file) {
-  std::cout << "Loading weights: " << file << std::endl;
+  LOG(INFO) << "Loading weights: " << file;
   std::map<std::string, Weights> weight_map;
   std::ifstream input(file);
   CHECK(input.is_open() &&
@@ -505,9 +505,9 @@ ICudaEngine *BuildDetectionEngine(unsigned int max_batch_size,
   config->setFlag(BuilderFlag::kFP16);
 #endif
 
-  std::cout << "Building engine, please wait for a while..." << std::endl;
+  LOG(INFO) << "Building engine, please wait for a while...";
   ICudaEngine *engine = builder->buildEngineWithConfig(*network, *config);
-  std::cout << "Build engine successfully!" << std::endl;
+  LOG(INFO) << "Build engine successfully!";
 
   // Don't need the network any more
   network->destroy();
