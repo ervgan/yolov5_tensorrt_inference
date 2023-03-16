@@ -1,6 +1,6 @@
 #ifndef YOLOV5_INFERENCE_YOLO_DETECTOR_H_
 #define YOLOV5_INFERENCE_YOLO_DETECTOR_H_
-
+#include <memory>
 #include <string>
 #include <vector>
 
