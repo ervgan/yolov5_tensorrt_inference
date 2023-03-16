@@ -12,10 +12,12 @@
 #include <vector>
 
 #include "../include/cuda_utils.h"
+#include "../include/logging/logging.h"
 #include "../include/post_process.h"
 #include "../include/pre_process.h"
 
 namespace yolov5_inference {
+Logger tensorrt_logger;
 
 namespace {
 
