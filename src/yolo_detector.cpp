@@ -133,7 +133,7 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
   CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(gpu_output_buffer),
                         kBatchSize * kOutputSize * sizeof(float)));
 
-  *cpu_output_buffer = new float[kBatchSize * kOutputSize];
+  cpu_output_buffer_ = std::make_unique<float[]>(kBatchSize * kOutputSize);
 }
 
 void YoloDetector::RunInference(IExecutionContext* context,
@@ -248,7 +248,7 @@ int YoloDetector::Init(int argc, char** argv) {
   CudaPreprocessInit(kMaxInputImageSize);
   // Prepare cpu and gpu buffers
   PrepareMemoryBuffers(engine_, &gpu_buffers_[0], &gpu_buffers_[1],
-                       &cpu_output_buffer_);
+                       cpu_output_buffer_.get());
   return static_cast<int>(States::kRunDetector);
 }
 
@@ -280,7 +280,7 @@ void YoloDetector::DrawDetections() {
     // Run inference
     auto start = std::chrono::system_clock::now();
     RunInference(context_, stream_, reinterpret_cast<void**>(gpu_buffers_),
-                 cpu_output_buffer_, kBatchSize);
+                 cpu_output_buffer_.get(), kBatchSize);
     auto end = std::chrono::system_clock::now();
     std::cout << "inference time: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end -
@@ -290,7 +290,7 @@ void YoloDetector::DrawDetections() {
 
     // Run Non Maximum Suppresion
     std::vector<std::vector<Detection>> result_batch;
-    ApplyBatchNonMaxSuppression(cpu_output_buffer_, image_batch.size(),
+    ApplyBatchNonMaxSuppression(cpu_output_buffer_.get(), image_batch.size(),
                                 kOutputSize, kConfThresh, kNmsThresh,
                                 &result_batch);
 

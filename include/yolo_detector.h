@@ -64,7 +64,8 @@ class YoloDetector {
   ICudaEngine* engine_ = nullptr;
   IExecutionContext* context_ = nullptr;
   float* gpu_buffers_[2];
-  float* cpu_output_buffer_ = nullptr;
+  // float* cpu_output_buffer_ = nullptr;
+  std::unique_ptr<float[]> cpu_output_buffer_;
   cudaStream_t stream_;
   // this will not be needed for live detection
   std::vector<std::string> file_names_;
