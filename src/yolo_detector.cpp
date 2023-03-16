@@ -13,14 +13,11 @@
 
 #include "../include/cuda_utils.h"
 #include "../include/logging/logging.h"
-#include "../include/model.h"
 #include "../include/post_process.h"
 #include "../include/pre_process.h"
 
 namespace yolov5_inference {
 Logger tensorrt_logger;
-const int kOutputSize =
-    kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 
 namespace {
 

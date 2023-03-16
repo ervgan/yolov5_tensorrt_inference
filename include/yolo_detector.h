@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "../include/model.h"
+#include "../include/types.h"
 
 // Compiled representation of a neural network
 // contains topology, layer config, device memory alloc and inference methods
@@ -29,6 +30,8 @@ using nvinfer1::IHostMemory;
 using nvinfer1::DataType;
 
 namespace yolov5_inference {
+const int kOutputSize =
+    kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 class YoloDetector {
  public:
   YoloDetector();
