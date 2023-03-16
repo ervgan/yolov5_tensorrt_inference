@@ -21,7 +21,7 @@
 using yolov5_inference::kIgnoreThresh;
 
 namespace nvinfer1 {
-class API YoloLayerPlugin : public IPluginV2IOExt {
+class YoloLayerPlugin : public IPluginV2IOExt {
  public:
   YoloLayerPlugin(int class_count, int neural_net_width, int neural_net_height,
                   int max_output, bool is_segmentation,
@@ -115,7 +115,7 @@ class API YoloLayerPlugin : public IPluginV2IOExt {
                        int nb_output) TRT_NOEXCEPT override {}
 
   // Detach the plugin object from its execution context
-  void YoloLayerPlugin::detachFromContext() TRT_NOEXCEPT {}
+  void detachFromContext() TRT_NOEXCEPT override {}
 
  private:
   void ForwardGpu(const float* const* inputs, float* output,
@@ -132,7 +132,7 @@ class API YoloLayerPlugin : public IPluginV2IOExt {
   void** anchor_;
 };
 
-class API YoloPluginCreator : public IPluginCreator {
+class YoloPluginCreator : public IPluginCreator {
  public:
   YoloPluginCreator();
 
