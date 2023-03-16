@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "../include/logging/logging.h"
 #include "../include/model.h"
 #include "../include/types.h"
 
@@ -30,6 +31,7 @@ using nvinfer1::IHostMemory;
 using nvinfer1::DataType;
 
 namespace yolov5_inference {
+Logger tensorrt_logger;
 const int kOutputSize =
     kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 class YoloDetector {
