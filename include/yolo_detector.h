@@ -65,7 +65,8 @@ class YoloDetector {
   IExecutionContext* context_ = nullptr;
   float* gpu_buffers_[2];
   // float* cpu_output_buffer_ = nullptr;
-  auto cpu_output_buffer_ = std::make_unique<float[]>(kBatchSize * kOutputSize);
+  std::unique_ptr<float[]> cpu_output_buffer_ =
+      std::make_unique<float[]>(kBatchSize * kOutputSize);
   cudaStream_t stream_;
   // this will not be needed for live detection
   std::vector<std::string> file_names_;
