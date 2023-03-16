@@ -115,10 +115,9 @@ YoloDetector::~YoloDetector() {
   runtime_->destroy();
 }
 
-void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
-                                        float** gpu_input_buffer,
-                                        float** gpu_output_buffer,
-                                        float** cpu_output_buffer) {
+void YoloDetector::PrepareMemoryBuffers(
+    ICudaEngine* engine, float** gpu_input_buffer, float** gpu_output_buffer,
+    std::unique_ptr<float[]>& cpu_output_buffer) {
   CHECK_EQ(engine->getNbBindings(), 2);
   // In order to bind the buffers, we need to know the names of the input and
   // output tensors. Note that indices are guaranteed to be less than
@@ -133,7 +132,7 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
   CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(gpu_output_buffer),
                         kBatchSize * kOutputSize * sizeof(float)));
 
-  cpu_output_buffer_ = std::make_unique<float[]>(kBatchSize * kOutputSize);
+  cpu_output_buffer.reset(new float[kBatchSize * kOutputSize]);
 }
 
 void YoloDetector::RunInference(IExecutionContext* context,
