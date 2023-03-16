@@ -39,7 +39,7 @@ class YoloDetector {
 
   void PrepareMemoryBuffers(ICudaEngine* engine, float** gpu_input_buffer,
                             float** gpu_output_buffer,
-                            float** cpu_output_buffer);
+                            std::unique_ptr<float[]>& cpu_output_buffer);
 
   void SerializeEngine(unsigned int max_batch_size, const float& depth_multiple,
                        const float& width_multiple, const std::string& wts_file,
