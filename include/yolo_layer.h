@@ -18,8 +18,10 @@
 // Source code for NvInferRuntimeCommon.h:
 // https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/_nv_infer_runtime_common_8h_source.html
 
+using yolov5_inference::kIgnoreThresh;
+
 namespace nvinfer1 {
-class YoloLayerPlugin : public IPluginV2IOExt {
+class API YoloLayerPlugin : public IPluginV2IOExt {
  public:
   YoloLayerPlugin(int class_count, int neural_net_width, int neural_net_height,
                   int max_output, bool is_segmentation,
@@ -35,7 +37,7 @@ class YoloLayerPlugin : public IPluginV2IOExt {
   Dims getOutputDimensions(int index, const Dims* inputs,
                            int nb_input_dimensions) TRT_NOEXCEPT override;
 
-  int initialize() TRT_NOEXCEPT override;
+  int initialize() TRT_NOEXCEPT override { return 0; }
 
   void terminate() TRT_NOEXCEPT override{};
 
@@ -61,32 +63,44 @@ class YoloLayerPlugin : public IPluginV2IOExt {
            input_output_metadata[index].type == DataType::kFLOAT;
   }
 
-  const char* getPluginType() const TRT_NOEXCEPT override;
+  const char* getPluginType() const TRT_NOEXCEPT override {
+    return "YoloLayer_TRT";
+  }
 
-  const char* getPluginVersion() const TRT_NOEXCEPT override;
+  const char* getPluginVersion() const TRT_NOEXCEPT override { return "1"; }
 
-  void destroy() TRT_NOEXCEPT override;
+  void destroy() TRT_NOEXCEPT override { delete this; }
 
   // Clone the plugin
   IPluginV2IOExt* clone() const TRT_NOEXCEPT override;
 
-  void setPluginNamespace(const char* plugin_namespace) TRT_NOEXCEPT override;
+  void setPluginNamespace(const char* plugin_namespace) TRT_NOEXCEPT override {
+    plugin_namespace_ = plugin_namespace;
+  }
 
-  const char* getPluginNamespace() const TRT_NOEXCEPT override;
+  const char* getPluginNamespace() const TRT_NOEXCEPT override {
+    return plugin_namespace_;
+  }
 
   // Return the DataType of the plugin output at the requested index
   DataType getOutputDataType(int index, const nvinfer1::DataType* input_types,
-                             int nb_inputs) const TRT_NOEXCEPT override;
+                             int nb_inputs) const TRT_NOEXCEPT override {
+    return DataType::kFLOAT;
+  }
 
   // Return true if output tensor is broadcast across a batch
-  bool isOutputBroadcastAcrossBatch(int output_index,
-                                    const bool* is_input_broadcasted,
-                                    int nb_inputs) const TRT_NOEXCEPT override;
+  bool isOutputBroadcastAcrossBatch(int outputIndex,
+                                    const bool* input_is_broadcasted,
+                                    int nb_inputs) const TRT_NOEXCEPT override {
+    return false;
+  }
 
   // Return true if plugin can use input that is broadcast across batch without
   // replication
   bool canBroadcastInputAcrossBatch(int input_index) const
-      TRT_NOEXCEPT override;
+      TRT_NOEXCEPT override {
+    return false;
+  }
 
   // Attach the plugin object to an execution context and grant the plugin the
   // access to some context resource
@@ -94,14 +108,14 @@ class YoloLayerPlugin : public IPluginV2IOExt {
   // cuda_blas refers to cuda's basic linear algebra library
   void attachToContext(cudnnContext* cuda_dnn_context,
                        cublasContext* cuda_blas_context,
-                       IGpuAllocator* gpu_allocator) TRT_NOEXCEPT override;
+                       IGpuAllocator* gpu_allocator) TRT_NOEXCEPT override {}
 
   void configurePlugin(const PluginTensorDesc* input, int nb_input,
                        const PluginTensorDesc* output,
-                       int nb_output) TRT_NOEXCEPT override;
+                       int nb_output) TRT_NOEXCEPT override {}
 
   // Detach the plugin object from its execution context
-  void detachFromContext() TRT_NOEXCEPT {}
+  void YoloLayerPlugin::detachFromContext() TRT_NOEXCEPT {}
 
  private:
   void ForwardGpu(const float* const* inputs, float* output,
@@ -118,17 +132,21 @@ class YoloLayerPlugin : public IPluginV2IOExt {
   void** anchor_;
 };
 
-class YoloPluginCreator : public IPluginCreator {
+class API YoloPluginCreator : public IPluginCreator {
  public:
   YoloPluginCreator();
 
   ~YoloPluginCreator() override = default;
 
-  const char* getPluginName() const TRT_NOEXCEPT override;
+  const char* getPluginName() const TRT_NOEXCEPT override {
+    return "YoloLayer_TRT";
+  }
 
-  const char* getPluginVersion() const TRT_NOEXCEPT override;
+  const char* getPluginVersion() const TRT_NOEXCEPT override { return "1"; }
 
-  const PluginFieldCollection* getFieldNames() TRT_NOEXCEPT override;
+  const PluginFieldCollection* getFieldNames() TRT_NOEXCEPT override {
+    return &plugin_fields_;
+  }
 
   IPluginV2IOExt* createPlugin(const char* name,
                                const PluginFieldCollection* plugin_fields)

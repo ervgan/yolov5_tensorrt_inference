@@ -15,8 +15,6 @@
 // Source code for NvInferRuntimeCommon.h:
 // https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/_nv_infer_runtime_common_8h_source.html
 
-using yolov5_inference::kIgnoreThresh;
-
 namespace read_write {
 template <typename T>
 void write(char** buffer, const T& value) {
@@ -115,65 +113,12 @@ size_t YoloLayerPlugin::getSerializationSize() const TRT_NOEXCEPT {
   return size;
 }
 
-int YoloLayerPlugin::initialize() TRT_NOEXCEPT { return 0; }
-
 Dims YoloLayerPlugin::getOutputDimensions(
     int index, const Dims* inputs, int nb_input_dimensions) TRT_NOEXCEPT {
   // output the result to channel
   int total_size = max_output_object_ * sizeof(Detection) / sizeof(float);
   return Dims3(total_size + 1, 1, 1);
 }
-
-void YoloLayerPlugin::setPluginNamespace(const char* plugin_namespace)
-    TRT_NOEXCEPT {
-  plugin_namespace_ = plugin_namespace;
-}
-
-const char* YoloLayerPlugin::getPluginNamespace() const TRT_NOEXCEPT {
-  return plugin_namespace_;
-}
-
-// Return the DataType of the plugin output at the requested index
-DataType YoloLayerPlugin::getOutputDataType(
-    int index, const nvinfer1::DataType* input_types,
-    int nb_inputs) const TRT_NOEXCEPT {
-  return DataType::kFLOAT;
-}
-
-// Return true if output tensor is broadcast across a batch
-bool YoloLayerPlugin::isOutputBroadcastAcrossBatch(
-    int outputIndex, const bool* input_is_broadcasted,
-    int nb_inputs) const TRT_NOEXCEPT {
-  return false;
-}
-
-// Return true if plugin can use input that is broadcast across batch without
-// replication
-bool YoloLayerPlugin::canBroadcastInputAcrossBatch(int input_index) const
-    TRT_NOEXCEPT {
-  return false;
-}
-
-void YoloLayerPlugin::configurePlugin(const PluginTensorDesc* input,
-                                      int nb_input,
-                                      const PluginTensorDesc* output,
-                                      int nb_output) TRT_NOEXCEPT {}
-
-// Attach the plugin object to an execution context and grant the plugin the
-// access to some context resource
-void YoloLayerPlugin::attachToContext(
-    cudnnContext* cuda_dnn_context, cublasContext* cuda_blas_context,
-    IGpuAllocator* gpu_allocator) TRT_NOEXCEPT {}
-
-const char* YoloLayerPlugin::getPluginType() const TRT_NOEXCEPT {
-  return "YoloLayer_TRT";
-}
-
-const char* YoloLayerPlugin::getPluginVersion() const TRT_NOEXCEPT {
-  return "1";
-}
-
-void YoloLayerPlugin::destroy() TRT_NOEXCEPT { delete this; }
 
 // Clone the plugin
 IPluginV2IOExt* YoloLayerPlugin::clone() const TRT_NOEXCEPT {
@@ -370,18 +315,6 @@ YoloPluginCreator::YoloPluginCreator() {
   plugin_attributes_.clear();
   plugin_fields_.nbFields = plugin_attributes_.size();
   plugin_fields_.fields = plugin_attributes_.data();
-}
-
-const char* YoloPluginCreator::getPluginName() const TRT_NOEXCEPT {
-  return "YoloLayer_TRT";
-}
-
-const char* YoloPluginCreator::getPluginVersion() const TRT_NOEXCEPT {
-  return "1";
-}
-
-const PluginFieldCollection* YoloPluginCreator::getFieldNames() TRT_NOEXCEPT {
-  return &plugin_fields_;
 }
 
 IPluginV2IOExt* YoloPluginCreator::createPlugin(
