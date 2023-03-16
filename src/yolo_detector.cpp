@@ -248,7 +248,7 @@ int YoloDetector::Init(int argc, char** argv) {
   CudaPreprocessInit(kMaxInputImageSize);
   // Prepare cpu and gpu buffers
   PrepareMemoryBuffers(engine_, &gpu_buffers_[0], &gpu_buffers_[1],
-                       cpu_output_buffer_.get());
+                       cpu_output_buffer_);
   return static_cast<int>(States::kRunDetector);
 }
 
