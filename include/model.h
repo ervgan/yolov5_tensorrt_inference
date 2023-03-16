@@ -5,6 +5,8 @@
 
 #include <string>
 
+#include "../include/config.h"
+
 using nvinfer1::ActivationType;
 using nvinfer1::BuilderFlag;
 using nvinfer1::DataType;

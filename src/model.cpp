@@ -9,7 +9,6 @@
 #include <map>
 #include <memory>
 
-#include "../include/config.h"
 #include "../include/yolo_layer.h"
 
 // C++ implementation of Yolov5 modules in models/common.py
