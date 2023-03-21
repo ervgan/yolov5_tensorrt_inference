@@ -206,8 +206,7 @@ void YoloDetector::DeserializeEngine(const std::string& engine_file,
 
   *runtime = createInferRuntime(tensorrt_logger);
   CHECK_NOTNULL(*runtime);
-  *engine =
-      (*runtime)->deserializeCudaEngine(serialized_engine.release(), size);
+  *engine = (*runtime)->deserializeCudaEngine(serialized_engine.get(), size);
   CHECK_NOTNULL(*engine);
   *context = (*engine)->createExecutionContext();
   CHECK_NOTNULL(*context);
