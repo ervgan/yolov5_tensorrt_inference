@@ -199,18 +199,16 @@ void YoloDetector::DeserializeEngine(const std::string& engine_file,
   file.seekg(0, file.end);
   size = file.tellg();
   file.seekg(0, file.beg);
-  char* serialized_engine = new char[size];
-  CHECK_NOTNULL(serialized_engine);
+  auto serialized_engine = std::make_unique<char[]>(size);
   file.read(serialized_engine, size);
   file.close();
 
   *runtime = createInferRuntime(tensorrt_logger);
   CHECK_NOTNULL(*runtime);
-  *engine = (*runtime)->deserializeCudaEngine(serialized_engine, size);
+  *engine = (*runtime)->deserializeCudaEngine(serialized_engine.get(), size);
   CHECK_NOTNULL(*engine);
   *context = (*engine)->createExecutionContext();
   CHECK_NOTNULL(*context);
-  delete[] serialized_engine;
 }
 
 int YoloDetector::Init(int argc, char** argv) {
