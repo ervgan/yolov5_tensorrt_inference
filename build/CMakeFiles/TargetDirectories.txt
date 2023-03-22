@@ -1,3 +1,0 @@
-/home/volirogpu/tensorrt_yolov5_cpp_inf/build/CMakeFiles/rebuild_cache.dir
-/home/volirogpu/tensorrt_yolov5_cpp_inf/build/CMakeFiles/edit_cache.dir
-/home/volirogpu/tensorrt_yolov5_cpp_inf/build/CMakeFiles/main.dir
