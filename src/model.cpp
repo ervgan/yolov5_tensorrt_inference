@@ -40,7 +40,6 @@ std::map<std::string, Weights> LoadWeights(const std::string& file) {
     // Read name and type of blob
     std::string name;
     input >> name >> std::dec >> size;
-    CHECK(input.fail() && "Error reading name and size from wts file");
     weight.type = DataType::kFLOAT;
     // Load blob
     auto weights = std::make_unique<uint32_t[]>(size);
