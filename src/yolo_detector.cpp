@@ -200,7 +200,7 @@ void YoloDetector::DeserializeEngine(const std::string& engine_file,
   size = file.tellg();
   file.seekg(0, file.beg);
   auto serialized_engine = std::make_unique<char[]>(size);
-  file.read(serialized_engine, size);
+  file.read(serialized_engine.get(), size);
   file.close();
 
   *runtime = createInferRuntime(tensorrt_logger);
