@@ -284,7 +284,6 @@ void YoloDetector::DrawDetections() {
     ApplyBatchNonMaxSuppression(cpu_output_buffer_.get(), image_batch.size(),
                                 kOutputSize, kConfThresh, kNmsThresh,
                                 &result_batch);
-    std::cout << "drawing boxes";
     // Draw bounding boxes
     DrawBox(image_batch, &result_batch);
 
