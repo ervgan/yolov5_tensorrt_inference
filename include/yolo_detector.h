@@ -53,8 +53,8 @@ class YoloDetector {
   void DeserializeEngine(const std::string& engine_file, IRuntime** runtime,
                          ICudaEngine** engine, IExecutionContext** context);
 
-  void RunInference(IExecutionContext* context, const cudaStream_t& stream,
-                    void** gpu_buffers, float* output, int batch_size);
+  void RunInference(void** gpu_buffers, IExecutionContext* context,
+                    const cudaStream_t& stream, int batch_size, float* output);
 
   void DrawDetection();
 
