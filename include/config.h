@@ -50,6 +50,7 @@ static const int kMaxInputImageSize = 4096 * 3112;
 enum class States {
   kBuildDetector = 0,  // Serializing file to .engine
   kRunDetector = 1,    // Using .engine for detection
+  kParseFail = -1,     // Failing to parse args
 };
 
 }  // namespace yolov5_inference

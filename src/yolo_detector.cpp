@@ -222,7 +222,7 @@ int YoloDetector::Init(int argc, char** argv) {
     LOG(ERROR)
         << "./yolov5_det -d [.engine_file] ../images  // deserialize plan "
            "file and run inference";
-    return -1;
+    return kParseFail;
   }
 
   // Create a model using the API directly and serialize it to a file
