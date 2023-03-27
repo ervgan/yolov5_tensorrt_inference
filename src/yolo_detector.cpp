@@ -261,7 +261,7 @@ Detection YoloDetector::Detect(const cv::Mat& resized_frame) {
 
   auto start = std::chrono::system_clock::now();
   RunInference(reinterpret_cast<void**>(gpu_buffers_), context_, stream_,
-               kBatchSize, cpu_output_buffer_);
+               kBatchSize, cpu_output_buffer_.get());
   auto end = std::chrono::system_clock::now();
   std::cout << "inference time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(end -
@@ -271,7 +271,7 @@ Detection YoloDetector::Detect(const cv::Mat& resized_frame) {
 
   std::vector<Detection> result_batch;
   Detection max_detection{};
-  ApplyNonMaxSuppresion(&cpu_output_buffer_[0], kConfThresh, kNmsThresh,
+  ApplyNonMaxSuppresion(cpu_output_buffer_.get(), kConfThresh, kNmsThresh,
                         &result_batch);
 
   if (!result_batch.empty()) {
