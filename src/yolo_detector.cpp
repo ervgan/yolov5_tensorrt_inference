@@ -24,15 +24,9 @@ Logger tensorrt_logger;
 
 namespace {
 
-<<<<<<< HEAD
-bool ParseArgs(int argc, char **argv, std::string *wts_file,
-               std::string *engine_file, float *depth_multiple,
-               float *width_multiple, std::string *video_directory) {
-=======
 bool ParseArgs(int argc, char** argv, std::string* wts_file,
                std::string* engine_file, float* depth_multiple,
                float* width_multiple, std::string* image_directory) {
->>>>>>> linter_tests
   if (argc < 4) {
     return false;
   }
@@ -83,31 +77,6 @@ bool ParseArgs(int argc, char** argv, std::string* wts_file,
   return true;
 }
 
-<<<<<<< HEAD
-=======
-// this will not be needed for deployment
-int ReadDirFiles(const char* directory_name,
-                 std::vector<std::string>* file_names) {
-  DIR* directory = opendir(directory_name);
-
-  if (directory == nullptr) {
-    return -1;
-  }
-
-  struct dirent* file = nullptr;
-
-  while ((file = readdir(directory)) != nullptr) {
-    if (strcmp(file->d_name, ".") != 0 && strcmp(file->d_name, "..") != 0) {
-      std::string cur_file_name(file->d_name);
-      file_names->push_back(cur_file_name);
-    }
-  }
-
-  closedir(directory);
-  return 0;
-}
-
->>>>>>> linter_tests
 }  //  namespace
 
 YoloDetector::YoloDetector() {}
@@ -158,14 +127,6 @@ void YoloDetector::RunInference(IExecutionContext* context,
 
 // Serializes .wts file into .engine file
 void YoloDetector::SerializeEngine(unsigned int max_batch_size,
-<<<<<<< HEAD
-                                   const float &depth_multiple,
-                                   const float &width_multiple,
-                                   const std::string &wts_file,
-                                   const std::string &engine_file) {
-  IBuilder *builder = createInferBuilder(tensorrt_logger);
-  IBuilderConfig *config = builder->createBuilderConfig();
-=======
                                    const float& depth_multiple,
                                    const float& width_multiple,
                                    const std::string& wts_file,
@@ -173,7 +134,6 @@ void YoloDetector::SerializeEngine(unsigned int max_batch_size,
   // Create builder
   IBuilder* builder = createInferBuilder(tensorrt_logger);
   IBuilderConfig* config = builder->createBuilderConfig();
->>>>>>> linter_tests
 
   // Create model to populate the network, then set the outputs and create an
   // engine
@@ -235,24 +195,13 @@ void YoloDetector::DeserializeEngine(const std::string& engine_file,
 int YoloDetector::Init(int argc, char** argv) {
   // sets parameters
   if (!ParseArgs(argc, argv, &wts_file_, &engine_file_, &depth_multiple_,
-<<<<<<< HEAD
-                 &width_multiple_, &video_directory_)) {
-    std::cerr << "arguments not right!" << std::endl;
-    std::cerr << "./yolov5_det -s [.wts_file] [.engine_file] [n/s/m/l/x "
-                 "or c depth_multiple width_multiple]  // serialize model to "
-                 "plan file"
-              << std::endl;
-    std::cerr
-=======
                  &width_multiple_, &image_directory_)) {
     LOG(ERROR) << "arguments not right!";
-    LOG(ERROR) << "./yolov5_det -s [.wts_file] [.engine_file] [n/s/m/l/x "
+    LOG(ERROR) << "./main -s [.wts_file] [.engine_file] [n/s/m/l/x "
                   "or c depth_multiple width_multiple]  // serialize model to "
                   "plan file";
-    LOG(ERROR)
->>>>>>> linter_tests
-        << "./yolov5_det -d [.engine_file] ../images  // deserialize plan "
-           "file and run inference";
+    LOG(ERROR) << "./main -d [.engine_file] ../images  // deserialize plan "
+                  "file and run inference";
     return kParseFail;
   }
 
@@ -274,18 +223,10 @@ int YoloDetector::Init(int argc, char** argv) {
   return static_cast<int>(States::kRunDetector);
 }
 
-<<<<<<< HEAD
 void YoloDetector::DrawDetection() {
   cv::VideoCapture cap(video_directory_, cv::CAP_ANY);
   if (!cap.isOpened()) {
     std::cout << "!!! Failed to open file: " << video_directory_ << std::endl;
-=======
-void YoloDetector::ProcessImages() {
-  // Read images from directory
-  // This should read one frame at a time for deployment
-  if (ReadDirFiles(image_directory_.c_str(), &file_names_) < 0) {
-    LOG(ERROR) << "read_files_in_dir failed.";
->>>>>>> linter_tests
     return;
   }
 
@@ -298,39 +239,10 @@ void YoloDetector::ProcessImages() {
 
     cv::resize(frame, resized_frame, cv::Size(1200, 720));
 
-<<<<<<< HEAD
     detection = Detect(resized_frame);
     // if width of bounding box == 0 then there is no detection
     if (detection.bounding_box[3] != 0) {
       DrawBox(resized_frame, &detection);
-=======
-    // Preprocess
-    CudaPreprocessBatch(&image_batch, kInputW, kInputH, stream_,
-                        gpu_buffers_[0]);
-    // Run inference
-    auto start = std::chrono::system_clock::now();
-    RunInference(context_, stream_, reinterpret_cast<void**>(gpu_buffers_),
-                 cpu_output_buffer_.get(), kBatchSize);
-    auto end = std::chrono::system_clock::now();
-    std::cout << "inference time: "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                       start)
-                     .count()
-              << "ms" << std::endl;
-
-    // Run Non Maximum Suppresion
-    std::vector<std::vector<Detection>> result_batch;
-    ApplyBatchNonMaxSuppression(cpu_output_buffer_.get(), image_batch.size(),
-                                kOutputSize, kConfThresh, kNmsThresh,
-                                &result_batch);
-    // Draw bounding boxes
-    DrawBox(image_batch, &result_batch);
-
-    // Save images
-    // Delete this for deployment
-    for (size_t j = 0; j < image_batch.size(); j++) {
-      cv::imwrite("_" + image_name_batch[j], image_batch[j]);
->>>>>>> linter_tests
     }
 
     // cv::imshow("window", resized_frame);
@@ -343,13 +255,12 @@ void YoloDetector::ProcessImages() {
   }
 }
 
-<<<<<<< HEAD
-Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
+Detection YoloDetector::Detect(const cv::Mat& resized_frame) {
   CudaPreprocess(resized_frame.data, resized_frame.cols, resized_frame.rows,
                  &gpu_buffers_[0][0], kInputW, kInputH, stream_);
 
   auto start = std::chrono::system_clock::now();
-  RunInference(context_, stream_, reinterpret_cast<void **>(gpu_buffers_),
+  RunInference(context_, stream_, reinterpret_cast<void**>(gpu_buffers_),
                cpu_output_buffer_, kBatchSize);
   auto end = std::chrono::system_clock::now();
   std::cout << "inference time: "
@@ -369,6 +280,3 @@ Detection YoloDetector::Detect(const cv::Mat &resized_frame) {
 
   return max_detection;
 }
-=======
-}  // namespace yolov5_inference
->>>>>>> linter_tests
