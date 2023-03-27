@@ -280,3 +280,4 @@ Detection YoloDetector::Detect(const cv::Mat& resized_frame) {
 
   return max_detection;
 }
+}  // namespace yolov5_inference
