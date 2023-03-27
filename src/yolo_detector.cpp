@@ -111,9 +111,9 @@ void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
                         kBatchSize * kOutputSize * sizeof(float)));
 }
 
-void YoloDetector::RunInference(IExecutionContext* context,
-                                const cudaStream_t& stream, void** gpu_buffers,
-                                float* output, int batch_size) {
+void YoloDetector::RunInference(void** gpu_buffers, IExecutionContext* context,
+                                const cudaStream_t& stream, int batch_size,
+                                float* output) {
   // Sets execution context for TensorRT
   context->enqueue(batch_size, gpu_buffers, stream, nullptr);
   // async memory copy between host and GPU device
@@ -260,8 +260,8 @@ Detection YoloDetector::Detect(const cv::Mat& resized_frame) {
                  kInputW, kInputH, stream_, &gpu_buffers_[0][0]);
 
   auto start = std::chrono::system_clock::now();
-  RunInference(context_, stream_, reinterpret_cast<void**>(gpu_buffers_),
-               cpu_output_buffer_, kBatchSize);
+  RunInference(reinterpret_cast<void**>(gpu_buffers_), context_, stream_,
+               kBatchSize, cpu_output_buffer_);
   auto end = std::chrono::system_clock::now();
   std::cout << "inference time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(end -
@@ -271,8 +271,8 @@ Detection YoloDetector::Detect(const cv::Mat& resized_frame) {
 
   std::vector<Detection> result_batch;
   Detection max_detection{};
-  ApplyNonMaxSuppresion(&result_batch, &cpu_output_buffer_[0], kConfThresh,
-                        kNmsThresh);
+  ApplyNonMaxSuppresion(&cpu_output_buffer_[0], kConfThresh, kNmsThresh,
+                        &result_batch);
 
   if (!result_batch.empty()) {
     max_detection = GetMaxDetection(&result_batch);

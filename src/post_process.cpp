@@ -89,6 +89,7 @@ cv::Rect CreateRectangle(const cv::Mat& image, float bounding_box_px[4]) {
                   round(rectangle_top_right_x - rectangle_bottom_left_x),
                   round(rectangle_top_right_y - rectangle_bottom_left_y));
 }
+}  // namespace
 
 // uses IntersectionOverUnion to delete duplicate bounding boxes
 // for the same detection
@@ -130,7 +131,6 @@ void ApplyNonMaxSuppresion(float* cpu_buffer, float confidence_thresh,
     }
   }
 }
-}  // namespace
 
 void ApplyBatchNonMaxSuppression(
     float* cpu_buffer, int batch_size, int output_size, float confidence_thresh,
