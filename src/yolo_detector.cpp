@@ -232,7 +232,7 @@ void YoloDetector::DrawDetection() {
 
   cv::Mat frame;
   cv::Mat resized_frame;
-  int count = 0;
+  // int count = 0;
   for (;;) {
     Detection detection;
     if (!cap.read(frame)) break;
@@ -245,13 +245,13 @@ void YoloDetector::DrawDetection() {
       DrawBox(resized_frame, &detection);
     }
 
-    // cv::imshow("window", resized_frame);
+    cv::imshow("window", resized_frame);
 
-    // char key = cv::waitKey(10);
-    // if (key == 27)  // ESC
-    // break;
-    cv::imwrite("_image" + std::to_string(count) + ".jpg", resized_frame);
-    count++;
+    char key = cv::waitKey(10);
+    if (key == 27)  // ESC
+      break;
+    // cv::imwrite("_image" + std::to_string(count) + ".jpg", resized_frame);
+    // count++;
   }
 }
 
