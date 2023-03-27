@@ -4,7 +4,7 @@ Supports yolov5 v1.0, v2.0, v3.0, v3.1, v4.0, v5.0, v6.0, v6.2, v7.0
 
 Dependencies:
 - wts_converter: yolov5 repo
-- yolov5_inference: tensorRT 8.2.5.1, CUDA, openCV
+- yolov5_inference: tensorRT 7x or 8x < 8.6.0, CUDA, openCV
 
 # Yolov5 TensorRT implementation
 
