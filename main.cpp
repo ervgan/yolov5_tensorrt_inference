@@ -1,9 +1,13 @@
 #include "../include/config.h"
 #include "../include/yolo_detector.h"
 
-int main(int argc, char **argv) {
-  cudaSetDevice(kGpuId);
+using yolov5_inference::kGpuId;
+using yolov5_inference::States;
+using yolov5_inference::YoloDetector;
+
+int main(int argc, char** argv) {
   YoloDetector yoloDetector;
+  cudaSetDevice(kGpuId);
   int state = yoloDetector.Init(argc, argv);
 
   // state 0 corresponds to serializing file to .engine

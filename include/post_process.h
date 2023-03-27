@@ -1,19 +1,21 @@
-#pragma once
+#ifndef YOLOV5_INFERENCE_POST_PROCESS_H_
+#define YOLOV5_INFERENCE_POST_PROCESS_H_
 
 #include <opencv2/opencv.hpp>
 #include <vector>
 
 #include "../include/types.h"
 
-cv::Rect CreateRectangle(const cv::Mat &image, float bounding_box[4]);
+namespace yolov5_inference {
 
-void ApplyNonMaxSuppresion(std::vector<Detection> *result, float *output,
-                           float confidence_tresh, float nms_thresh);
-
+// uses IntersectionOverUnion to delete duplicate bounding boxes
+// for the same detection
 void ApplyBatchNonMaxSuppression(
-    std::vector<std::vector<Detection>> *batch_result, float *output,
-    int batch_size, int output_size, float confidence_tresh, float nms_thresh);
+    float* cpu_buffer, int batch_size, int output_size, float confidence_tresh,
+    float nms_thresh, std::vector<std::vector<Detection>>* batch_result);
 
-Detection GetMaxDetection(std::vector<Detection> *results);
+Detection GetMaxDetection(std::vector<Detection>* results);
 
-void DrawBox(const cv::Mat &image_batch, Detection *detection);
+void DrawBox(const cv::Mat& image_batch, Detection* detection);
+
+}  // namespace yolov5_inference
