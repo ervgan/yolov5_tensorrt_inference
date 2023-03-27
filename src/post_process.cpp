@@ -157,7 +157,7 @@ Detection GetMaxDetection(std::vector<Detection>* results) {
 }
 
 void DrawBox(const cv::Mat& image, Detection* detection) {
-  cv::Rect rectangle = CreateRectangle(image, (*detection).bounding_box);
+  cv::Rect rectangle = CreateRectangle(image, (*detection).bounding_box_px);
   cv::rectangle(image, rectangle, cv::Scalar(0x27, 0xC1, 0x36), 2);
   int rounded_confidence =
       static_cast<int>(std::round((*detection).confidence * 100));

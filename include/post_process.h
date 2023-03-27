@@ -22,3 +22,5 @@ Detection GetMaxDetection(std::vector<Detection>* results);
 void DrawBox(const cv::Mat& image_batch, Detection* detection);
 
 }  // namespace yolov5_inference
+
+#endif  // YOLOV5_INFERENCE_CONFIG_H_

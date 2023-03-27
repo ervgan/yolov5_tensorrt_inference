@@ -241,7 +241,7 @@ void YoloDetector::DrawDetection() {
 
     detection = Detect(resized_frame);
     // if width of bounding box == 0 then there is no detection
-    if (detection.bounding_box[3] != 0) {
+    if (detection.bounding_box_px[3] != 0) {
       DrawBox(resized_frame, &detection);
     }
 
