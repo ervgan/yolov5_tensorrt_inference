@@ -54,4 +54,3 @@ make
 # For example using yolov5s weights
 ./main -s yolov5s.wts yolov5s.engine s
 ./main -d yolov5s.engine ../images
-
