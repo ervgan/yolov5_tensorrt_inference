@@ -16,6 +16,10 @@ void CudaPreprocessBatch(std::vector<cv::Mat>* image_batch,
                          int processing_image_width,
                          int processing_image_height, cudaStream_t stream,
                          float* output_gpu_image_buffer);
+
+void CudaPreprocess(uint8_t* image, int image_width, int image_height,
+                    int processing_image_width, int processing_image_height,
+                    cudaStream_t stream, float* output_gpu_image_buffer);
 }  // namespace yolov5_inference
 
 #endif  // YOLOV5_INFERENCE_PRE_PROCESS_H_

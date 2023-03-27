@@ -26,7 +26,7 @@ namespace {
 
 bool ParseArgs(int argc, char** argv, std::string* wts_file,
                std::string* engine_file, float* depth_multiple,
-               float* width_multiple, std::string* image_directory) {
+               float* width_multiple, std::string* video_directory) {
   if (argc < 4) {
     return false;
   }
@@ -195,14 +195,14 @@ void YoloDetector::DeserializeEngine(const std::string& engine_file,
 int YoloDetector::Init(int argc, char** argv) {
   // sets parameters
   if (!ParseArgs(argc, argv, &wts_file_, &engine_file_, &depth_multiple_,
-                 &width_multiple_, &image_directory_)) {
+                 &width_multiple_, &video_directory_)) {
     LOG(ERROR) << "arguments not right!";
     LOG(ERROR) << "./main -s [.wts_file] [.engine_file] [n/s/m/l/x "
                   "or c depth_multiple width_multiple]  // serialize model to "
                   "plan file";
     LOG(ERROR) << "./main -d [.engine_file] ../images  // deserialize plan "
                   "file and run inference";
-    return kParseFail;
+    return static_cast<int>(States::kParseFail);
   }
 
   // Create a model using the API directly and serialize it to a file
@@ -257,7 +257,7 @@ void YoloDetector::DrawDetection() {
 
 Detection YoloDetector::Detect(const cv::Mat& resized_frame) {
   CudaPreprocess(resized_frame.data, resized_frame.cols, resized_frame.rows,
-                 &gpu_buffers_[0][0], kInputW, kInputH, stream_);
+                 kInputW, kInputH, stream_, &gpu_buffers_[0][0]);
 
   auto start = std::chrono::system_clock::now();
   RunInference(context_, stream_, reinterpret_cast<void**>(gpu_buffers_),

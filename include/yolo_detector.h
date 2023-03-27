@@ -1,11 +1,9 @@
-<<<<<<< HEAD
 
-#include <opencv2/opencv.hpp>
-=======
 #ifndef YOLOV5_INFERENCE_YOLO_DETECTOR_H_
 #define YOLOV5_INFERENCE_YOLO_DETECTOR_H_
+
 #include <memory>
->>>>>>> linter_tests
+#include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
 
@@ -60,14 +58,14 @@ class YoloDetector {
 
   void DrawDetection();
 
-  Detection Detect(const cv::Mat &resized_frame);
+  Detection Detect(const cv::Mat& resized_frame);
 
  private:
   std::string wts_file_ = "";
   std::string engine_file_ = "";
   float depth_multiple_ = 0.0f;
   float width_multiple_ = 0.0f;
-  std::string image_directory_ = "";
+  std::string video_directory_ = "";
   IRuntime* runtime_ = nullptr;
   ICudaEngine* engine_ = nullptr;
   IExecutionContext* context_ = nullptr;

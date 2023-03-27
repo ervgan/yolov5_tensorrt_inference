@@ -125,6 +125,7 @@ __global__ void WarpAffineKernel(uint8_t* image_buffer, int image_line_size,
   *color_1_pointer = color_1;
   *color_2_pointer = color_2;
 }
+}  // namespace
 
 // preprocess images by creating the affine tranformation
 // and applying it to the original image by calling warpAffineKernel
@@ -177,7 +178,6 @@ void CudaPreprocess(uint8_t* image, int image_width, int image_height,
   // of tasks)
   CUDA_CHECK(cudaStreamSynchronize(stream));
 }
-}  // namespace
 
 void CudaPreprocessBatch(std::vector<cv::Mat>* image_batch,
                          int processing_image_width,
