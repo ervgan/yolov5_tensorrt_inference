@@ -100,17 +100,7 @@ int ReadDirFiles(const char* directory_name,
 
 YoloDetector::YoloDetector() {}
 
-YoloDetector::~YoloDetector() {
-  cudaStreamDestroy(stream_);
-  CUDA_CHECK(cudaFree(gpu_buffers_[0]));
-  CUDA_CHECK(cudaFree(gpu_buffers_[1]));
-  // delete[] cpu_output_buffer_;
-  CudaPreprocessDestroy();
-  // Destroy the engine
-  context_->destroy();
-  engine_->destroy();
-  runtime_->destroy();
-}
+YoloDetector::~YoloDetector() {}
 
 void YoloDetector::PrepareMemoryBuffers(ICudaEngine* engine,
                                         float** gpu_input_buffer,
@@ -293,6 +283,15 @@ void YoloDetector::DrawDetections() {
       cv::imwrite("_" + image_name_batch[j], image_batch[j]);
     }
   }
+  cudaStreamDestroy(stream_);
+  CUDA_CHECK(cudaFree(gpu_buffers_[0]));
+  CUDA_CHECK(cudaFree(gpu_buffers_[1]));
+  // delete[] cpu_output_buffer_;
+  CudaPreprocessDestroy();
+  // Destroy the engine
+  context_->destroy();
+  engine_->destroy();
+  runtime_->destroy();
 }
 
 }  // namespace yolov5_inference
