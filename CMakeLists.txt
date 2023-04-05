@@ -17,8 +17,8 @@ include_directories(${glog_INCLUDE_DIRS})
 include_directories(/usr/local/cuda/include)
 link_directories(/usr/local/cuda/lib64)
 # tensorrt
-include_directories(/home/nvidia/TensorRT/include/)
-link_directories(/home/nvidia/TensorRT/lib/)
+include_directories(/home/nvidia/TensorRT-8.2.5.1/include/)
+link_directories(/home/nvidia/TensorRT-8.2.5.1/lib/)
 # OpenCV
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
